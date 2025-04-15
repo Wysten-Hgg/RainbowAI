@@ -2,13 +2,17 @@ use axum::{
     extract::State,
     Json,
     http::StatusCode,
+    Router, routing::post,
+    middleware::Next,
+    response::Response,
+    Request,
 };
 use serde::Serialize;
 
 use crate::{
     db::Database,
     middleware::AuthenticatedUser,
-    models::{User, PromoterType, FrontendUserRole},
+    models::{User, PromoterType, FrontendUserRole, VipLevelConfig, VipLevel},
 };
 
 #[derive(Serialize)]
@@ -71,4 +75,26 @@ pub async fn apply_for_promoter(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(StatusCode::OK)
+}
+
+async fn admin_auth<B>(req: Request<B>, next: Next<B>, State(db): State<Arc<Database>>) -> Result<Response, StatusCode> {
+    // 从请求中获取用户ID
+    let user_id = req.extensions().get::<AuthenticatedUser>().ok_or(StatusCode::UNAUTHORIZED)?.user_id.clone();
+    
+    // 从数据库中获取最新的用户信息
+    let user = db.get_user_by_id(&user_id).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?.ok_or(StatusCode::UNAUTHORIZED)?;
+    
+    // 检查管理员权限
+    if !user.is_admin() {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(next.run(req).await)
+}
+
+async fn set_vip_config(
+    State(db): State<Arc<Database>>,
+    Json(config): Json<VipLevelConfig>,
+) -> Result<Json<String>, StatusCode> {
+    db.set_vip_config(&config).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json("VIP configuration updated successfully".to_string()))
 }

@@ -49,3 +49,23 @@ DEFINE FIELD verification_type ON email_verification TYPE string;
 DEFINE FIELD expires_at ON email_verification TYPE int;
 DEFINE FIELD used ON email_verification TYPE bool;
 DEFINE FIELD created_at ON email_verification TYPE int;
+
+-- Create Coupon table
+DEFINE TABLE coupon SCHEMAFULL;
+DEFINE FIELD id ON coupon TYPE string ASSERT $value != NONE;
+DEFINE FIELD coupon_type ON coupon TYPE string;
+DEFINE FIELD sub_type ON coupon TYPE string;
+DEFINE FIELD value ON coupon TYPE float;
+DEFINE FIELD duration_days ON coupon TYPE option<int>;
+DEFINE FIELD status ON coupon TYPE string;
+DEFINE FIELD owner_id ON coupon TYPE string ASSERT $value != NONE;
+DEFINE FIELD issued_at ON coupon TYPE int;
+DEFINE FIELD expires_at ON coupon TYPE int;
+DEFINE FIELD is_transferable ON coupon TYPE bool;
+
+-- Create VIP Config table
+DEFINE TABLE vip_config SCHEMAFULL;
+DEFINE FIELD level ON vip_config TYPE string ASSERT $value IN ['Free', 'Pro', 'Premium', 'Ultimate', 'Team'];
+DEFINE FIELD max_ai_partners ON vip_config TYPE int;
+DEFINE FIELD daily_chat_limit ON vip_config TYPE int;
+DEFINE FIELD daily_lio_limit ON vip_config TYPE int;

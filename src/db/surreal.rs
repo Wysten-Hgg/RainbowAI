@@ -3,7 +3,7 @@ use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
 use time::OffsetDateTime;
 
-use crate::models::{AuditLog, EmailVerification, User, AI, Invite};
+use crate::models::{AuditLog, EmailVerification, User, AI, Invite, Coupon, VipLevelConfig, VipLevel};
 
 pub struct Database {
     client: Surreal<Client>,
@@ -129,5 +129,52 @@ impl Database {
             .bind(("user_id", user_id))
             .await?;
         Ok(logs.take(0)?)
+    }
+
+    pub async fn create_coupon(&self, coupon: &Coupon) -> Result<(), surrealdb::Error> {
+        self.client
+            .create(("coupon", &coupon.id))
+            .content(coupon)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_coupon(&self, id: &str) -> Result<Option<Coupon>, surrealdb::Error> {
+        self.client
+            .select(("coupon", id))
+            .await
+    }
+
+    pub async fn update_coupon(&self, coupon: &Coupon) -> Result<(), surrealdb::Error> {
+        self.client
+            .update(("coupon", &coupon.id))
+            .content(coupon)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_user_coupons(&self, user_id: &str) -> Result<Vec<Coupon>, surrealdb::Error> {
+        let coupons = self
+            .client
+            .query("SELECT * FROM coupon WHERE owner_id = $user_id AND status = 'active'")
+            .bind(("user_id", user_id))
+            .await?;
+        Ok(coupons.take(0)?)
+    }
+
+    pub async fn get_vip_config(&self, vip_level: &VipLevel) -> Result<VipLevelConfig, surrealdb::Error> {
+        let config = self.client
+            .query("SELECT * FROM vip_config WHERE level = $level")
+            .bind(("level", vip_level.to_string()))
+            .await?;
+        Ok(config.take(0)?)
+    }
+
+    pub async fn set_vip_config(&self, config: &VipLevelConfig) -> Result<(), surrealdb::Error> {
+        self.client
+            .update(("vip_config", config.level.to_string()))
+            .content(config)
+            .await?;
+        Ok(())
     }
 }
