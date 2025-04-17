@@ -1,1 +1,0 @@
-fn(State<surreal::Database>, {type error}) -> impl std::future::Future<Output = Result<axum::Json<ProfileResponse>, axum::http::StatusCode>> {get_profile}

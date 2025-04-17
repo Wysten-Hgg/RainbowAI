@@ -1,1 +1,0 @@
-fn(State<surreal::Database>, {type error}) -> impl std::future::Future<Output = Result<axum::http::StatusCode, axum::http::StatusCode>> {check_vip_status}

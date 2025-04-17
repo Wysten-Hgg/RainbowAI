@@ -1,1 +1,0 @@
-fn(State<surreal::Database>, {type error}, axum::Json<InitiateAIPayload>) -> impl std::future::Future<Output = Result<axum::Json<InitiateAIResponse>, axum::http::StatusCode>> {initiate_ai}

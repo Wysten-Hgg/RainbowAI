@@ -1,1 +1,0 @@
-fn(State<surreal::Database>, Json<LoginPayload>) -> impl std::future::Future<Output = Result<Json<AuthResponse>, axum::http::StatusCode>> {login}

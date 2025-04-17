@@ -1,1 +1,0 @@
-fn(State<Arc<surreal::Database>>, AuthenticatedUser, axum::Json<RedeemCouponPayload>) -> impl std::future::Future<Output = Result<hyper::StatusCode, hyper::StatusCode>> {routes::coupon::redeem_coupon}

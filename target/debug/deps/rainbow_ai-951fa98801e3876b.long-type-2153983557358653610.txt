@@ -1,1 +1,0 @@
-fn(State<{type error}>, Json<{type error}>) -> impl std::future::Future<Output = Result<Json<std::string::String>, axum::http::StatusCode>> {set_vip_config}

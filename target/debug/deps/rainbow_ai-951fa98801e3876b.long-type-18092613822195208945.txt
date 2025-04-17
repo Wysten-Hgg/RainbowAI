@@ -1,1 +1,0 @@
-fn(State<Arc<surreal::Database>>, {type error}, Json<{type error}>) -> impl std::future::Future<Output = Result<{type error}, {type error}>> {redeem_coupon}

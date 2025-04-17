@@ -1,1 +1,0 @@
-fn(State<Arc<surreal::Database>>, {type error}, axum::Json<TransferCouponPayload>) -> impl std::future::Future<Output = Result<hyper::StatusCode, hyper::StatusCode>> {transfer_coupon}

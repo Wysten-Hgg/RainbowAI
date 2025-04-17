@@ -1,1 +1,0 @@
-fn(State<surreal::Database>, AuthenticatedUser) -> impl std::future::Future<Output = Result<axum::Json<Vec<Coupon>>, hyper::StatusCode>> {routes::coupon::get_my_coupons}

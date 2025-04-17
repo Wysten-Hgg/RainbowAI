@@ -1,1 +1,0 @@
-fn(State<surreal::Database>, {type error}, Json<{type error}>) -> impl std::future::Future<Output = Result<axum::http::StatusCode, axum::http::StatusCode>> {apply_for_promoter}
