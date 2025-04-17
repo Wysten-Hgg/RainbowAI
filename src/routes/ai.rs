@@ -4,11 +4,12 @@ use axum::{
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::{
     models::{AI, AIType, ColorSlot, User},
     db::Database,
-    middleware::AuthenticatedUser,
+    middleware::auth::AuthenticatedUser,
 };
 
 #[derive(Deserialize)]
@@ -19,7 +20,7 @@ pub struct InitiateAIPayload {
 
 #[derive(Serialize)]
 pub struct InitiateAIResponse {
-    ai_id: i32,
+    ai_id: String,
 }
 
 pub async fn initiate_ai(
@@ -39,7 +40,7 @@ pub async fn initiate_ai(
 
     // 初始化AI逻辑
     let ai = AI::new(
-        payload.ai_type,
+        format!("AI-{}", Uuid::new_v4().to_string().split('-').next().unwrap()),
         payload.color_slot,
         auth_user.user_id.clone(),
     );

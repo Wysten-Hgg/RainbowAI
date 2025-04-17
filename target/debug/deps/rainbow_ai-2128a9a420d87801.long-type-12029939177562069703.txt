@@ -1,0 +1,1 @@
+fn(State<surreal::Database>, {type error}) -> impl std::future::Future<Output = Result<axum::Json<CreateInviteResponse>, axum::http::StatusCode>> {create_invite}

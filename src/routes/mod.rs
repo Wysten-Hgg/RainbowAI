@@ -10,9 +10,10 @@ use axum::{
     routing::{post, get},
 };
 
+
 use crate::db::Database;
 
-pub fn create_router(db: Database) -> Router {
+pub fn create_routes(db:Database) -> Router {
     Router::new()
         .route("/auth/register", post(auth::register))
         .route("/auth/login", post(auth::login))
@@ -27,6 +28,9 @@ pub fn create_router(db: Database) -> Router {
         .route("/invite/use", post(invite::use_invite))
         .route("/admin/user/role", post(admin::update_user_role))
         .route("/admin/audit-logs", get(admin::view_audit_logs))
-        .merge(coupon::create_coupon_routes(db.clone()))
+        .route("/coupon/my", get(coupon::get_my_coupons))
+        .route("/coupon/redeem", post(coupon::redeem_coupon))
+        .route("/coupon/transfer", post(coupon::transfer_coupon))
+        .route("/coupon/issue/admin", post(coupon::issue_coupon_admin))
         .with_state(db)
 }

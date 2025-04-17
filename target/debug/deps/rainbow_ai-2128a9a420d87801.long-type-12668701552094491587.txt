@@ -1,0 +1,1 @@
+fn(State<Arc<surreal::Database>>, {type error}, axum::Json<{type error}>) -> impl std::future::Future<Output = Result<hyper::StatusCode, hyper::StatusCode>> {redeem_coupon}

@@ -1,0 +1,1 @@
+fn(State<Arc<surreal::Database>>, AuthenticatedUser, axum::Json<IssueCouponPayload>) -> impl std::future::Future<Output = Result<hyper::StatusCode, hyper::StatusCode>> {issue_coupon_admin}

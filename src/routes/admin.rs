@@ -7,16 +7,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     db::Database,
-    middleware::AuthenticatedUser,
-    models::{User, UserRole, AuditLog, AuditAction},
+    middleware::auth::AuthenticatedUser,
+    models::{User, AuditLog, AuditAction},
+    models::user::BackendUserRole,
 };
 
 #[derive(Deserialize)]
 pub struct UpdateUserRolePayload {
     user_id: String,
-    new_role: UserRole,
+    new_role: String,
 }
 
+#[axum::debug_handler]
 pub async fn update_user_role(
     State(db): State<Database>,
     auth_user: AuthenticatedUser,
@@ -29,7 +31,7 @@ pub async fn update_user_role(
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
     // 验证管理员权限
-    if !admin.roles.contains(&UserRole::SuperAdmin) && !admin.roles.contains(&UserRole::Admin) {
+    if !admin.is_admin() {
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -40,13 +42,23 @@ pub async fn update_user_role(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // 只有超级管理员可以修改管理员权限
-    if (payload.new_role == UserRole::Admin || payload.new_role == UserRole::SuperAdmin) 
-        && !admin.roles.contains(&UserRole::SuperAdmin) {
+    if (payload.new_role == "Admin" || payload.new_role == "SuperAdmin") 
+        && !admin.backend_roles.contains(&BackendUserRole::SuperAdmin) {
         return Err(StatusCode::FORBIDDEN);
     }
 
     // 更新用户角色
-    user.roles = vec![payload.new_role];
+    // 将字符串转换为 BackendUserRole
+    let new_role = match payload.new_role.as_str() {
+        "Admin" => BackendUserRole::Admin,
+        "SuperAdmin" => BackendUserRole::SuperAdmin,
+        "Moderator" => BackendUserRole::Moderator,
+        "Editor" => BackendUserRole::Editor,
+        "Viewer" => BackendUserRole::Viewer,
+        _ => return Err(StatusCode::BAD_REQUEST),
+    };
+    user.backend_roles = vec![new_role];
+    
     db.update_user(&user)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -71,6 +83,7 @@ pub struct AuditLogResponse {
     logs: Vec<AuditLog>,
 }
 
+#[axum::debug_handler]
 pub async fn view_audit_logs(
     State(db): State<Database>,
     auth_user: AuthenticatedUser,
@@ -82,7 +95,7 @@ pub async fn view_audit_logs(
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
     // 验证管理员权限
-    if !admin.roles.iter().any(|role| matches!(role, UserRole::SuperAdmin | UserRole::Admin | UserRole::Moderator)) {
+    if !admin.backend_roles.iter().any(|role| matches!(role, BackendUserRole::SuperAdmin | BackendUserRole::Admin | BackendUserRole::Moderator)) {
         return Err(StatusCode::FORBIDDEN);
     }
 

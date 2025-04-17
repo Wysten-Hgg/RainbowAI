@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use time;
 use uuid;
+use crate::models::{User, VipLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum AIType {
@@ -46,11 +47,11 @@ impl ColorSlot {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum AIStatus {
-    Active,
     Inactive,
-    Evolving,
+    Active,
+    Suspended,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,7 +86,7 @@ impl AI {
     }
 
     pub fn can_partner_with(&self, user: &User) -> bool {
-        user.ai_partner_count < user.vip_level.max_ai_partners()
+        user.ai_partner_count < user.ai_slots
             && self.partner_id.is_none()
             && self.status == AIStatus::Active
     }
@@ -93,7 +94,7 @@ impl AI {
 
 impl User {
     pub fn can_initiate_ai(&self, ai_type: AIType) -> bool {
-        ai_type.is_compatible_with_vip(self.vip_level) && self.can_awaken_ai()
+        ai_type.is_compatible_with_vip(self.vip_level.clone()) && self.ai_partner_count < self.ai_slots
     }
 
     pub fn handle_vip_expiration(&mut self) {

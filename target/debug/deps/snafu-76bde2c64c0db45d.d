@@ -1,0 +1,12 @@
+/home/ubuntu/RainbowAI/target/debug/deps/libsnafu-76bde2c64c0db45d.rmeta: /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/lib.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/backtrace_inert.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/once_bool.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/error_chain.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/report.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/Snafu.md /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/report.md /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/../README.md
+
+/home/ubuntu/RainbowAI/target/debug/deps/snafu-76bde2c64c0db45d.d: /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/lib.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/backtrace_inert.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/once_bool.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/error_chain.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/report.rs /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/Snafu.md /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/report.md /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/../README.md
+
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/lib.rs:
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/backtrace_inert.rs:
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/once_bool.rs:
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/error_chain.rs:
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/report.rs:
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/Snafu.md:
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/report.md:
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/snafu-0.7.5/src/../README.md:

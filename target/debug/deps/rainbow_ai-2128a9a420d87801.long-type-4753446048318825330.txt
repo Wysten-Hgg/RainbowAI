@@ -1,0 +1,1 @@
+fn(State<surreal::Database>, {type error}, axum::Json<UpdateUserRolePayload>) -> impl std::future::Future<Output = Result<axum::http::StatusCode, axum::http::StatusCode>> {update_user_role}

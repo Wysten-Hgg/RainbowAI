@@ -1,0 +1,1 @@
+fn(State<surreal::Database>, axum::Json<RegisterPayload>) -> impl std::future::Future<Output = Result<axum::Json<AuthResponse>, axum::http::StatusCode>> {register}

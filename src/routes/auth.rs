@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use bcrypt::{hash, DEFAULT_COST};
 use time::{OffsetDateTime};
 
-use crate::{models::User, db::Database, utils::jwt};
+use crate::{models::{User, VipLevel}, db::Database, utils::jwt};
 
 #[derive(Deserialize)]
 pub struct RegisterPayload {

@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7"
+axum = { version = "0.7", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-surrealdb = "1.0.0-beta.10"
+surrealdb = { version = "1.5.6", features = ["protocol-http"] }
 jsonwebtoken = "9"
 uuid = { version = "1", features = ["v4"] }
 tower = "0.4"
@@ -17,3 +17,5 @@ tower-http = { version = "0.4", features = ["cors"] }
 async-trait = "0.1"
 bcrypt = "0.10"
 time = "0.3"
+hyper = "0.14"
+rand = "0.8"

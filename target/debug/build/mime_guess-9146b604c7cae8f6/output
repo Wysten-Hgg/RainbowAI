@@ -1,0 +1,1 @@
+cargo:rustc-env=MIME_TYPES_GENERATED_PATH=/home/ubuntu/RainbowAI/target/debug/build/mime_guess-9146b604c7cae8f6/out/mime_types_generated.rs

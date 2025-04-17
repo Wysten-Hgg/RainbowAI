@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime};
 
 use crate::{
+    middleware::auth::AuthenticatedUser,
     db::Database,
-    middleware::AuthenticatedUser,
     models::{Invite, User, VipLevel},
 };
 

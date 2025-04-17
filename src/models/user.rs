@@ -3,7 +3,7 @@ use time;
 use uuid;
 use crate::db::Database;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum VipLevel {
     Free,
     Pro,
@@ -58,14 +58,14 @@ impl VipLevelConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum FrontendUserRole {
     User,
     Promoter,
     Manager,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum BackendUserRole {
     Moderator,
     Admin,
@@ -81,6 +81,13 @@ pub enum PromoterType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VipStatus {
+    pub level: String,
+    pub start: i64,
+    pub end: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
     pub id: String,
     pub email: String,
@@ -92,6 +99,10 @@ pub struct User {
     pub daily_chat_count: u32,
     pub daily_lio_count: u32,
     pub invite_code: Option<String>,
+    pub vip_schedule: Vec<VipStatus>,
+    pub pro_experience_expiration: Option<i64>,
+    pub awakened_ais: Vec<String>,
+    pub ai_slots: u32,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -110,6 +121,10 @@ impl User {
             daily_chat_count: 0,
             daily_lio_count: 0,
             invite_code: None,
+            vip_schedule: vec![],
+            pro_experience_expiration: None,
+            awakened_ais: vec![],
+            ai_slots: 0,
             created_at: now,
             updated_at: now,
         }
@@ -133,19 +148,19 @@ impl User {
         Ok(max_ai_partners > 1)
     }
 
-    pub async fn apply_for_promoter(&mut self, db: &Database, promoter_type: PromoterType) -> Result<(), String> {
-        if !(self.can_apply_for_promoter(db).await?)? {
-            return Err("用户不是VIP会员，无法申请推广权限".to_string());
+    pub async fn apply_for_promoter(&mut self, db: &Database, promoter_type: PromoterType) -> Result<(), surrealdb::Error> {
+        if !self.can_apply_for_promoter(db).await? {
+            return Err(surrealdb::Error::Api(surrealdb::error::Api::Query(String::from("Cannot apply for promoter"))));
         }
         match promoter_type {
             PromoterType::Individual => self.frontend_roles.push(FrontendUserRole::Promoter),
-            PromoterType::Organization => self.frontend_roles.push(FrontendUserRole::Promoter), // 可以根据需要区分
+            PromoterType::Organization => self.frontend_roles.push(FrontendUserRole::Promoter),
         }
         Ok(())
     }
 
     pub async fn revoke_promoter_if_vip_expired(&mut self, db: &Database) -> Result<(), surrealdb::Error> {
-        if !(self.can_apply_for_promoter(db).await?)? {
+        if !self.can_apply_for_promoter(db).await? {
             self.frontend_roles.retain(|role| *role != FrontendUserRole::Promoter);
         }
         Ok(())

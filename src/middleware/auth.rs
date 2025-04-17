@@ -2,8 +2,8 @@ use axum::{
     async_trait,
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
-    headers::{Authorization, HeaderMapExt},
 };
+use axum::http::header::{AUTHORIZATION, HeaderMap};
 
 use crate::utils::jwt;
 
@@ -20,13 +20,10 @@ where
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
         // 从header中获取token
-        let auth_header = parts
-            .headers
-            .typed_get::<Authorization<String>>()
-            .ok_or(StatusCode::UNAUTHORIZED)?;
+        let auth_header = parts.headers.get(AUTHORIZATION).ok_or(StatusCode::UNAUTHORIZED)?;
 
         // 验证token
-        let claims = jwt::verify_token(auth_header.as_str())
+        let claims = jwt::verify_token(auth_header.to_str().map_err(|_| StatusCode::UNAUTHORIZED)?)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         Ok(Self {

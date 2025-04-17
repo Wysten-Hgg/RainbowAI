@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use rand;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum VerificationType {
