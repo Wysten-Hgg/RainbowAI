@@ -4,6 +4,7 @@ pub mod ai;
 pub mod invite;
 pub mod admin;
 pub mod coupon;
+pub mod points;
 
 use axum::{
     Router,
@@ -18,6 +19,7 @@ pub fn create_routes(db:Database) -> Router {
         .route("/auth/register", post(auth::register))
         .route("/auth/login", post(auth::login))
         .route("/auth/refresh", post(auth::refresh_token))
+        .route("/auth/verify-email", post(auth::verify_email))
         .route("/user/profile", get(user::get_profile))
         .route("/user/stats", get(user::get_stats))
         .route("/user/apply-promoter", post(user::apply_for_promoter))
@@ -32,5 +34,6 @@ pub fn create_routes(db:Database) -> Router {
         .route("/coupon/redeem", post(coupon::redeem_coupon))
         .route("/coupon/transfer", post(coupon::transfer_coupon))
         .route("/coupon/issue/admin", post(coupon::issue_coupon_admin))
+        .nest("/points", points::points_routes())
         .with_state(db)
 }

@@ -2,30 +2,42 @@ use surrealdb::engine::remote::http::{Client, Http};
 use surrealdb::opt::auth::Root;
 use surrealdb::Surreal;
 use time::OffsetDateTime;
+use std::env;
 
 use crate::models::{AuditLog, EmailVerification, User, AI, Invite, VipLevelConfig, VipLevel};
 use crate::models::coupon::Coupon;
 
 #[derive(Clone)]
 pub struct Database {
-    client: Surreal<Client>,
+    pub client: Surreal<Client>,
 }
 
 impl Database {
     pub async fn init() -> Result<Self, surrealdb::Error> {
+        // 从环境变量读取数据库配置
+        let db_host = env::var("DB_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+        let db_port = env::var("DB_PORT").unwrap_or_else(|_| "8000".to_string());
+        let db_username = env::var("DB_USERNAME").unwrap_or_else(|_| "root".to_string());
+        let db_password = env::var("DB_PASSWORD").unwrap_or_else(|_| "root".to_string());
+        let db_namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "rainbow".to_string());
+        let db_name = env::var("DB_NAME").unwrap_or_else(|_| "ai".to_string());
+        
+        // 构建数据库连接URL
+        let db_url = format!("http://{}:{}", db_host, db_port);
+        
         // 连接数据库
-        let client = Surreal::<Client>::new::<Http>("http://127.0.0.1:8000").await?;
+        let client = Surreal::<Client>::new::<Http>(&db_url).await?;
         
         // 使用root账户连接
         client
             .signin(Root {
-                username: "root",
-                password: "root",
+                username: &db_username,
+                password: &db_password,
             })
             .await?;
         
         // 使用命名空间和数据库
-        client.use_ns("rainbow").use_db("ai").await?;
+        client.use_ns(&db_namespace).use_db(&db_name).await?;
         
         Ok(Self { client })
     }
@@ -52,6 +64,17 @@ impl Database {
             .content(user)
             .await?;
         Ok(())
+    }
+
+    pub async fn update_user(&self, user: &User) -> Result<(), surrealdb::Error> {
+        let result: Result<Option<User>, surrealdb::Error> = self.client
+            .update(("user", &user.id))
+            .content(user)
+            .await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn create_ai(&self, ai: &AI) -> Result<(), surrealdb::Error> {
@@ -127,11 +150,18 @@ impl Database {
         Ok(results.take(0)?)
     }
 
-    pub async fn mark_verification_used(&self, id: &str) -> Result<(), surrealdb::Error> {
+    pub async fn get_verification_by_id(&self, id: &str) -> Result<Option<EmailVerification>, surrealdb::Error> {
         self.client
-            .query("UPDATE email_verification SET used = true WHERE id = $id")
+            .select(("email_verification", id))
+            .await
+    }
+
+    pub async fn mark_verification_used(&self, id: &str) -> Result<(), surrealdb::Error> {
+        let result = self.client
+            .query("UPDATE email_verification:$id SET used = true")
             .bind(("id", id))
             .await?;
+        
         Ok(())
     }
 
@@ -218,14 +248,6 @@ impl Database {
         self.client
             .update::<Option<VipLevelConfig>>(("vip_config", config.level.to_string()))
             .content(config)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn update_user(&self, user: &User) -> Result<(), surrealdb::Error> {
-        self.client
-            .update::<Option<User>>(("user", &user.id))
-            .content(user)
             .await?;
         Ok(())
     }

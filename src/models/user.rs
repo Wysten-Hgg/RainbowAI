@@ -99,10 +99,17 @@ pub struct User {
     pub daily_chat_count: u32,
     pub daily_lio_count: u32,
     pub invite_code: Option<String>,
+    pub invited_by: Option<String>,
     pub vip_schedule: Vec<VipStatus>,
     pub pro_experience_expiration: Option<i64>,
     pub awakened_ais: Vec<String>,
     pub ai_slots: u32,
+    pub hp: u32,                          // 人类积分
+    pub lc_balance: u32,                  // 光币余额
+    pub daily_checkin_streak: u32,        // 连续签到天数
+    pub last_checkin_date: Option<i64>,   // 上次签到日期
+    pub total_invites: u32,               // 总邀请人数
+    pub is_email_verified: bool,          // 邮箱是否已验证
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -121,10 +128,17 @@ impl User {
             daily_chat_count: 0,
             daily_lio_count: 0,
             invite_code: None,
+            invited_by: None,
             vip_schedule: vec![],
             pro_experience_expiration: None,
             awakened_ais: vec![],
             ai_slots: 0,
+            hp: 0,
+            lc_balance: 0,
+            daily_checkin_streak: 0,
+            last_checkin_date: None,
+            total_invites: 0,
+            is_email_verified: false,     // 默认为未验证
             created_at: now,
             updated_at: now,
         }
