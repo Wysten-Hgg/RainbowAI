@@ -219,13 +219,15 @@ impl Database {
             // 如果没有找到配置，返回默认配置
             VipLevelConfig::new(
                 vip_level.clone(),
+                // 总AI数量
                 match vip_level {
                     VipLevel::Free => 1,
-                    VipLevel::Pro => 2,
-                    VipLevel::Premium => 3,
-                    VipLevel::Ultimate => 5,
-                    VipLevel::Team => 10,
+                    VipLevel::Pro => 3,
+                    VipLevel::Premium => 5,
+                    VipLevel::Ultimate => 7,
+                    VipLevel::Team => 35,
                 },
+                // 每日聊天限制
                 match vip_level {
                     VipLevel::Free => 50,
                     VipLevel::Pro => 100,
@@ -233,12 +235,53 @@ impl Database {
                     VipLevel::Ultimate => 500,
                     VipLevel::Team => 1000,
                 },
+                // 每日LIO限制
                 match vip_level {
                     VipLevel::Free => 10,
                     VipLevel::Pro => 20,
                     VipLevel::Premium => 50,
                     VipLevel::Ultimate => 100,
                     VipLevel::Team => 200,
+                },
+                // 伴侣型AI数量
+                match vip_level {
+                    VipLevel::Free => 1,
+                    VipLevel::Pro => 2,
+                    VipLevel::Premium => 2,
+                    VipLevel::Ultimate => 2,
+                    VipLevel::Team => 10,
+                },
+                // 创造型AI数量
+                match vip_level {
+                    VipLevel::Free => 0,
+                    VipLevel::Pro => 1,
+                    VipLevel::Premium => 2,
+                    VipLevel::Ultimate => 2,
+                    VipLevel::Team => 10,
+                },
+                // 工作型AI数量
+                match vip_level {
+                    VipLevel::Free => 0,
+                    VipLevel::Pro => 0,
+                    VipLevel::Premium => 1,
+                    VipLevel::Ultimate => 2,
+                    VipLevel::Team => 10,
+                },
+                // 服务型AI数量
+                match vip_level {
+                    VipLevel::Free => 0,
+                    VipLevel::Pro => 0,
+                    VipLevel::Premium => 0,
+                    VipLevel::Ultimate => 1,
+                    VipLevel::Team => 5,
+                },
+                // 自由映射额度
+                match vip_level {
+                    VipLevel::Free => 0,
+                    VipLevel::Pro => 1,
+                    VipLevel::Premium => 3,
+                    VipLevel::Ultimate => 5,
+                    VipLevel::Team => 20,
                 }
             )
         }))

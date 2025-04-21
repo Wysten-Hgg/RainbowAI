@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use time;
 use uuid;
 use crate::db::Database;
+use crate::models::ai::AIType;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum VipLevel {
@@ -45,15 +46,35 @@ pub struct VipLevelConfig {
     pub max_ai_partners: u32,
     pub daily_chat_limit: u32,
     pub daily_lio_limit: u32,
+    pub max_companion_ai: u32,
+    pub max_creative_ai: u32,
+    pub max_work_ai: u32,
+    pub max_service_ai: u32,
+    pub free_mapping_quota: u32,
 }
 
 impl VipLevelConfig {
-    pub fn new(level: VipLevel, max_ai_partners: u32, daily_chat_limit: u32, daily_lio_limit: u32) -> Self {
+    pub fn new(
+        level: VipLevel, 
+        max_ai_partners: u32, 
+        daily_chat_limit: u32, 
+        daily_lio_limit: u32,
+        max_companion_ai: u32,
+        max_creative_ai: u32,
+        max_work_ai: u32,
+        max_service_ai: u32,
+        free_mapping_quota: u32
+    ) -> Self {
         Self {
             level,
             max_ai_partners,
             daily_chat_limit,
             daily_lio_limit,
+            max_companion_ai,
+            max_creative_ai,
+            max_work_ai,
+            max_service_ai,
+            free_mapping_quota,
         }
     }
 }
@@ -96,6 +117,11 @@ pub struct User {
     pub backend_roles: Vec<BackendUserRole>,
     pub vip_level: VipLevel,
     pub ai_partner_count: u32,
+    pub companion_ai_count: u32,
+    pub creative_ai_count: u32,
+    pub work_ai_count: u32,
+    pub service_ai_count: u32,
+    pub free_mapping_used: u32,
     pub daily_chat_count: u32,
     pub daily_lio_count: u32,
     pub invite_code: Option<String>,
@@ -104,12 +130,12 @@ pub struct User {
     pub pro_experience_expiration: Option<i64>,
     pub awakened_ais: Vec<String>,
     pub ai_slots: u32,
-    pub hp: u32,                          // 人类积分
-    pub lc_balance: u32,                  // 光币余额
-    pub daily_checkin_streak: u32,        // 连续签到天数
-    pub last_checkin_date: Option<i64>,   // 上次签到日期
-    pub total_invites: u32,               // 总邀请人数
-    pub is_email_verified: bool,          // 邮箱是否已验证
+    pub hp: u32,
+    pub lc_balance: u32,
+    pub daily_checkin_streak: u32,
+    pub last_checkin_date: Option<i64>,
+    pub total_invites: u32,
+    pub is_email_verified: bool,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -125,6 +151,11 @@ impl User {
             backend_roles: vec![],
             vip_level: VipLevel::Free,
             ai_partner_count: 0,
+            companion_ai_count: 0,
+            creative_ai_count: 0,
+            work_ai_count: 0,
+            service_ai_count: 0,
+            free_mapping_used: 0,
             daily_chat_count: 0,
             daily_lio_count: 0,
             invite_code: None,
@@ -132,13 +163,13 @@ impl User {
             vip_schedule: vec![],
             pro_experience_expiration: None,
             awakened_ais: vec![],
-            ai_slots: 0,
+            ai_slots: 1,
             hp: 0,
             lc_balance: 0,
             daily_checkin_streak: 0,
             last_checkin_date: None,
             total_invites: 0,
-            is_email_verified: false,     // 默认为未验证
+            is_email_verified: false,
             created_at: now,
             updated_at: now,
         }
@@ -186,5 +217,43 @@ impl User {
 
     pub fn is_admin(&self) -> bool {
         self.has_role(BackendUserRole::Admin) || self.has_role(BackendUserRole::SuperAdmin)
+    }
+
+    pub async fn can_initiate_ai(&self, ai_type: &AIType, db: &Database) -> Result<bool, surrealdb::Error> {
+        let config = db.get_vip_config(&self.vip_level).await?;
+        
+        // 检查总AI数量
+        if self.ai_partner_count >= config.max_ai_partners {
+            return Ok(false);
+        }
+        
+        // 检查特定类型AI数量
+        match ai_type {
+            AIType::Companion => Ok(self.companion_ai_count < config.max_companion_ai),
+            AIType::Creative => Ok(self.creative_ai_count < config.max_creative_ai),
+            AIType::Work => Ok(self.work_ai_count < config.max_work_ai),
+            AIType::Service => Ok(self.service_ai_count < config.max_service_ai),
+            _ => Ok(false), // 其他类型暂不支持
+        }
+    }
+    
+    pub fn update_ai_count(&mut self, ai_type: &AIType) {
+        self.ai_partner_count += 1;
+        match ai_type {
+            AIType::Companion => self.companion_ai_count += 1,
+            AIType::Creative => self.creative_ai_count += 1,
+            AIType::Work => self.work_ai_count += 1,
+            AIType::Service => self.service_ai_count += 1,
+            _ => {}
+        }
+    }
+    
+    pub fn has_free_mapping_quota(&self, db: &Database) -> Result<bool, surrealdb::Error> {
+        let config = db.get_vip_config(&self.vip_level).await?;
+        Ok(self.free_mapping_used < config.free_mapping_quota)
+    }
+    
+    pub fn use_free_mapping(&mut self) {
+        self.free_mapping_used += 1;
     }
 }

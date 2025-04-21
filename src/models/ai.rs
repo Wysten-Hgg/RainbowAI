@@ -15,86 +15,75 @@ pub enum AIType {
 }
 
 impl AIType {
-    pub fn is_compatible_with_vip(&self, vip_level: VipLevel) -> bool {
+    pub fn is_compatible_with_vip(&self, vip_level: &VipLevel) -> bool {
         match self {
-            AIType::Companion | AIType::Creative | AIType::Work | AIType::Service => {
-                matches!(vip_level, VipLevel::Pro | VipLevel::Premium | VipLevel::Ultimate | VipLevel::Team)
-            }
-            AIType::Coordination | AIType::Business | AIType::Governance => false,
+            AIType::Companion => true, // 所有等级都可以使用伴侣型AI
+            AIType::Creative => matches!(vip_level, VipLevel::Pro | VipLevel::Premium | VipLevel::Ultimate | VipLevel::Team),
+            AIType::Work => matches!(vip_level, VipLevel::Premium | VipLevel::Ultimate | VipLevel::Team),
+            AIType::Service => matches!(vip_level, VipLevel::Ultimate | VipLevel::Team),
+            AIType::Coordination | AIType::Business | AIType::Governance => matches!(vip_level, VipLevel::Team),
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub enum ColorSlot {
-    Red,     // 伴侣型
-    Orange,  // 伴侣型
-    Yellow,  // 创造型
-    Green,   // 创造型
-    Blue,    // 工作型
-    Indigo,  // 工作型
-    Purple,  // 服务型
-}
-
-impl ColorSlot {
-    pub fn get_ai_type(&self) -> AIType {
+    
+    pub fn to_string(&self) -> &str {
         match self {
-            ColorSlot::Red | ColorSlot::Orange => AIType::Companion,
-            ColorSlot::Yellow | ColorSlot::Green => AIType::Creative,
-            ColorSlot::Blue | ColorSlot::Indigo => AIType::Work,
-            ColorSlot::Purple => AIType::Service,
+            AIType::Companion => "伴侣型",
+            AIType::Creative => "创造型",
+            AIType::Work => "工作型",
+            AIType::Service => "服务型",
+            AIType::Coordination => "协调型",
+            AIType::Business => "业务型",
+            AIType::Governance => "治理型",
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum AIStatus {
-    Inactive,
     Active,
+    Inactive,
     Suspended,
+    Deleted,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AI {
     pub id: String,
     pub name: String,
     pub ai_type: AIType,
-    pub color_slot: ColorSlot,
-    pub awakener_id: String,
-    pub partner_id: Option<String>,
+    pub user_id: String,
     pub status: AIStatus,
-    pub evolution_level: u32,
+    pub awakened: bool,
+    pub awakened_by: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
 
 impl AI {
-    pub fn new(name: String, color_slot: ColorSlot, awakener_id: String) -> Self {
+    pub fn new(name: String, ai_type: AIType, user_id: String) -> Self {
         let now = time::OffsetDateTime::now_utc().unix_timestamp();
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             name,
-            ai_type: color_slot.get_ai_type(),
-            color_slot,
-            awakener_id,
-            partner_id: None,
+            ai_type,
+            user_id,
             status: AIStatus::Active,
-            evolution_level: 1,
+            awakened: false,
+            awakened_by: None,
             created_at: now,
             updated_at: now,
         }
     }
-
-    pub fn can_partner_with(&self, user: &User) -> bool {
-        user.ai_partner_count < user.ai_slots
-            && self.partner_id.is_none()
-            && self.status == AIStatus::Active
+    
+    pub fn awaken(&mut self, user_id: String) {
+        self.awakened = true;
+        self.awakened_by = Some(user_id);
     }
 }
 
 impl User {
     pub fn can_initiate_ai(&self, ai_type: AIType) -> bool {
-        ai_type.is_compatible_with_vip(self.vip_level.clone()) && self.ai_partner_count < self.ai_slots
+        ai_type.is_compatible_with_vip(&self.vip_level) && self.ai_partner_count < self.ai_slots
     }
 
     pub fn handle_vip_expiration(&mut self) {

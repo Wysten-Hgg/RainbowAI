@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    models::{AI, AIType, ColorSlot, User},
+    models::{AI, AIType, User},
     db::Database,
     middleware::auth::AuthenticatedUser,
 };
@@ -15,7 +15,7 @@ use crate::{
 #[derive(Deserialize)]
 pub struct InitiateAIPayload {
     ai_type: AIType,
-    color_slot: ColorSlot,
+    name: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -33,23 +33,29 @@ pub async fn initiate_ai(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    // 检查用户是否可以初始化AI
-    if !user.can_initiate_ai(payload.ai_type) {
+    // 检查用户是否可以初始化特定类型的AI
+    if !user.can_initiate_ai(&payload.ai_type, &db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         return Err(StatusCode::FORBIDDEN);
     }
 
+    // 生成AI名称
+    let ai_name = payload.name.unwrap_or_else(|| 
+        format!("AI-{}", Uuid::new_v4().to_string().split('-').next().unwrap())
+    );
+
     // 初始化AI逻辑
     let ai = AI::new(
-        format!("AI-{}", Uuid::new_v4().to_string().split('-').next().unwrap()),
-        payload.color_slot,
+        ai_name,
+        payload.ai_type.clone(),
         auth_user.user_id.clone(),
     );
+    
     db.create_ai(&ai)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // 更新用户AI伴侣数量
-    user.ai_partner_count += 1;
+    // 更新用户AI计数
+    user.update_ai_count(&payload.ai_type);
     db.update_user(&user)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

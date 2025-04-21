@@ -1,96 +1,12 @@
--- Create User table
-DEFINE TABLE user SCHEMAFULL;
-DEFINE FIELD id ON user TYPE string ASSERT $value != NONE;
-DEFINE FIELD email ON user TYPE string ASSERT is::email($value);
-DEFINE FIELD password_hash ON user TYPE string ASSERT $value != NONE;
-DEFINE FIELD frontend_roles ON user TYPE array;
-DEFINE FIELD backend_roles ON user TYPE array;
-DEFINE FIELD vip_level ON user TYPE string;
-DEFINE FIELD ai_partner_count ON user TYPE int;
-DEFINE FIELD companion_ai_count ON user TYPE int DEFAULT 0;
-DEFINE FIELD creative_ai_count ON user TYPE int DEFAULT 0;
-DEFINE FIELD work_ai_count ON user TYPE int DEFAULT 0;
-DEFINE FIELD service_ai_count ON user TYPE int DEFAULT 0;
-DEFINE FIELD free_mapping_used ON user TYPE int DEFAULT 0;
-DEFINE FIELD daily_chat_count ON user TYPE int;
-DEFINE FIELD daily_lio_count ON user TYPE int;
-DEFINE FIELD invite_code ON user TYPE option<string>;
-DEFINE FIELD created_at ON user TYPE int;
-DEFINE FIELD updated_at ON user TYPE int;
+-- 更新User表，添加积分和货币相关字段
 ALTER TABLE user ADD FIELD hp TYPE int DEFAULT 0;
 ALTER TABLE user ADD FIELD lc_balance TYPE int DEFAULT 0;
 ALTER TABLE user ADD FIELD daily_checkin_streak TYPE int DEFAULT 0;
 ALTER TABLE user ADD FIELD last_checkin_date TYPE option<int>;
 ALTER TABLE user ADD FIELD total_invites TYPE int DEFAULT 0;
 ALTER TABLE user ADD FIELD invited_by TYPE option<string>;
-ALTER TABLE user ADD FIELD is_email_verified TYPE bool DEFAULT false;
-ALTER TABLE user ADD FIELD ai_slots TYPE int DEFAULT 1;
 
--- Create Invite table
-DEFINE TABLE invite SCHEMAFULL;
-DEFINE FIELD code ON invite TYPE string ASSERT $value != NONE;
-DEFINE FIELD used_by ON invite TYPE array;
-DEFINE FIELD creator_id ON invite TYPE string ASSERT $value != NONE;
-DEFINE FIELD usage_limit ON invite TYPE int;
-DEFINE FIELD expires_at ON invite TYPE int;
-DEFINE FIELD created_at ON invite TYPE int;
-DEFINE FIELD updated_at ON invite TYPE int;
-
--- Create AI table
-DEFINE TABLE ai SCHEMAFULL;
-DEFINE FIELD id ON ai TYPE string ASSERT $value != NONE;
-DEFINE FIELD name ON ai TYPE string;
-DEFINE FIELD ai_type ON ai TYPE string;
-DEFINE FIELD status ON ai TYPE string;
-DEFINE FIELD user_id ON ai TYPE string ASSERT $value != NONE;
-DEFINE FIELD awakened ON ai TYPE bool DEFAULT false;
-DEFINE FIELD awakened_by ON ai TYPE option<string>;
-DEFINE FIELD created_at ON ai TYPE int;
-DEFINE FIELD updated_at ON ai TYPE int;
-
--- Create AuditLog table
-DEFINE TABLE audit_log SCHEMAFULL;
-DEFINE FIELD id ON audit_log TYPE string ASSERT $value != NONE;
-DEFINE FIELD action ON audit_log TYPE string;
-DEFINE FIELD user_id ON audit_log TYPE string ASSERT $value != NONE;
-DEFINE FIELD created_at ON audit_log TYPE int;
-
--- Create EmailVerification table
-DEFINE TABLE email_verification SCHEMAFULL;
-DEFINE FIELD id ON email_verification TYPE string ASSERT $value != NONE;
-DEFINE FIELD email ON email_verification TYPE string ASSERT is::email($value);
-DEFINE FIELD code ON email_verification TYPE string;
-DEFINE FIELD verification_type ON email_verification TYPE string;
-DEFINE FIELD expires_at ON email_verification TYPE int;
-DEFINE FIELD used ON email_verification TYPE bool;
-DEFINE FIELD created_at ON email_verification TYPE int;
-
--- Create Coupon table
-DEFINE TABLE coupon SCHEMAFULL;
-DEFINE FIELD id ON coupon TYPE string ASSERT $value != NONE;
-DEFINE FIELD coupon_type ON coupon TYPE string;
-DEFINE FIELD sub_type ON coupon TYPE string;
-DEFINE FIELD value ON coupon TYPE float;
-DEFINE FIELD duration_days ON coupon TYPE option<int>;
-DEFINE FIELD status ON coupon TYPE string;
-DEFINE FIELD owner_id ON coupon TYPE string ASSERT $value != NONE;
-DEFINE FIELD issued_at ON coupon TYPE int;
-DEFINE FIELD expires_at ON coupon TYPE int;
-DEFINE FIELD is_transferable ON coupon TYPE bool;
-
--- Create VIP Config table
-DEFINE TABLE vip_config SCHEMAFULL;
-DEFINE FIELD level ON vip_config TYPE string;
-DEFINE FIELD max_ai_partners ON vip_config TYPE int;
-DEFINE FIELD daily_chat_limit ON vip_config TYPE int;
-DEFINE FIELD daily_lio_limit ON vip_config TYPE int;
-DEFINE FIELD max_companion_ai ON vip_config TYPE int;
-DEFINE FIELD max_creative_ai ON vip_config TYPE int;
-DEFINE FIELD max_work_ai ON vip_config TYPE int;
-DEFINE FIELD max_service_ai ON vip_config TYPE int;
-DEFINE FIELD free_mapping_quota ON vip_config TYPE int;
-
--- 积分与货币系统 - 创建钱包交易记录表
+-- 创建钱包交易记录表
 DEFINE TABLE wallet_tx SCHEMAFULL;
 DEFINE FIELD id ON wallet_tx TYPE string ASSERT $value != NONE;
 DEFINE FIELD user_id ON wallet_tx TYPE string ASSERT $value != NONE;
