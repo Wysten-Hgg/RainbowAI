@@ -34,7 +34,7 @@ pub async fn initiate_ai(
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // 检查用户是否可以初始化特定类型的AI
-    if !user.can_initiate_ai(&payload.ai_type, &db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
+    if !user.can_create_ai(&payload.ai_type, &db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? {
         return Err(StatusCode::FORBIDDEN);
     }
 

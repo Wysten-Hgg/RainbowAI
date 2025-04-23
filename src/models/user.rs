@@ -219,7 +219,7 @@ impl User {
         self.has_role(BackendUserRole::Admin) || self.has_role(BackendUserRole::SuperAdmin)
     }
 
-    pub async fn can_initiate_ai(&self, ai_type: &AIType, db: &Database) -> Result<bool, surrealdb::Error> {
+    pub async fn can_create_ai(&self, ai_type: &AIType, db: &Database) -> Result<bool, surrealdb::Error> {
         let config = db.get_vip_config(&self.vip_level).await?;
         
         // 检查总AI数量
@@ -248,7 +248,7 @@ impl User {
         }
     }
     
-    pub fn has_free_mapping_quota(&self, db: &Database) -> Result<bool, surrealdb::Error> {
+    pub async fn has_free_mapping_quota(&self, db: &Database) -> Result<bool, surrealdb::Error> {
         let config = db.get_vip_config(&self.vip_level).await?;
         Ok(self.free_mapping_used < config.free_mapping_quota)
     }

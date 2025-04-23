@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{State, Path},
     http::StatusCode,
     Json,
     routing::{get, post},
@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 
 use crate::db::Database;
 use crate::models::{
-    WalletTx, CurrencyType, Gift, GiftRecord, LuckyCard, ShopItem, PurchaseRecord
+    WalletTx, CurrencyType, Gift, GiftRecord, LuckyCard, TxType
 };
 use crate::services::PointsService;
 use crate::middleware::auth::AuthenticatedUser;
@@ -50,16 +50,6 @@ pub struct UseLuckyCardRequest {
 pub struct UseLuckyCardResponse {
     success: bool,
     multiplier: Option<f32>,
-}
-
-#[derive(Deserialize)]
-pub struct PurchaseItemRequest {
-    item_id: String,
-}
-
-#[derive(Serialize)]
-pub struct PurchaseItemResponse {
-    success: bool,
 }
 
 #[derive(Deserialize)]
@@ -144,7 +134,7 @@ pub async fn get_hp_transactions(
     }
 }
 
-// 获取光币交易记录
+// 获取金币交易记录
 pub async fn get_lc_transactions(
     State(db): State<Database>,
     auth_user: AuthenticatedUser,
@@ -157,7 +147,7 @@ pub async fn get_lc_transactions(
     }
 }
 
-// 充值光币
+// 充值金币
 pub async fn recharge_lc(
     State(db): State<Database>,
     auth_user: AuthenticatedUser,
@@ -165,17 +155,17 @@ pub async fn recharge_lc(
 ) -> Result<Json<RechargeLCResponse>, StatusCode> {
     let points_service = PointsService::new(db.clone());
     
-    // 充值光币
-    if let Err(_) = points_service.recharge_lc(&auth_user.user_id, payload.amount).await {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-    
-    // 获取新的余额
-    match points_service.get_user_wallet(&auth_user.user_id).await {
-        Ok((_, lc_balance)) => {
+    // 这里应该有支付流程，暂时简化处理
+    match points_service.recharge_lc(&auth_user.user_id, payload.amount).await {
+        Ok(()) => {
+            // 获取新的余额
+            let user = db.get_user_by_id(&auth_user.user_id).await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+                .ok_or(StatusCode::NOT_FOUND)?;
+            
             Ok(Json(RechargeLCResponse {
                 success: true,
-                new_balance: lc_balance,
+                new_balance: user.lc_balance,
             }))
         },
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -203,7 +193,7 @@ pub async fn send_gift(
 ) -> Result<Json<SendGiftResponse>, StatusCode> {
     let points_service = PointsService::new(db);
     
-    match points_service.send_gift(&payload.gift_id, &auth_user.user_id, &payload.receiver_ai_id, payload.message).await {
+    match points_service.send_gift(&auth_user.user_id, &payload.gift_id, &payload.receiver_ai_id, payload.message).await {
         Ok(success) => {
             Ok(Json(SendGiftResponse {
                 success,
@@ -230,9 +220,18 @@ pub async fn get_sent_gifts(
 pub async fn get_ai_received_gifts(
     State(db): State<Database>,
     auth_user: AuthenticatedUser,
-    ai_id: String,
+    Path(ai_id): Path<String>,
 ) -> Result<Json<Vec<GiftRecord>>, StatusCode> {
-    let points_service = PointsService::new(db);
+    let points_service = PointsService::new(db.clone());
+    
+    // 验证AI是否属于当前用户
+    let ais = db.get_user_ais(&auth_user.user_id).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    let ai_belongs_to_user = ais.iter().any(|ai| ai.id == ai_id);
+    if !ai_belongs_to_user {
+        return Err(StatusCode::FORBIDDEN);
+    }
     
     match points_service.get_ai_received_gifts(&ai_id, 50).await {
         Ok(records) => Ok(Json(records)),
@@ -240,14 +239,14 @@ pub async fn get_ai_received_gifts(
     }
 }
 
-// 获取用户有效的幸运卡
+// 获取有效的幸运卡
 pub async fn get_valid_lucky_cards(
     State(db): State<Database>,
     auth_user: AuthenticatedUser,
 ) -> Result<Json<Vec<LuckyCard>>, StatusCode> {
-    let db_clone = db.clone();
+    let points_service = PointsService::new(db);
     
-    match db_clone.get_user_valid_lucky_cards(&auth_user.user_id).await {
+    match points_service.get_user_valid_lucky_cards(&auth_user.user_id).await {
         Ok(cards) => Ok(Json(cards)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -268,50 +267,6 @@ pub async fn use_lucky_card(
                 multiplier,
             }))
         },
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
-
-// 获取可用商品列表
-pub async fn get_available_shop_items(
-    State(db): State<Database>,
-    auth_user: AuthenticatedUser,
-) -> Result<Json<Vec<ShopItem>>, StatusCode> {
-    let points_service = PointsService::new(db);
-    
-    match points_service.get_available_shop_items().await {
-        Ok(items) => Ok(Json(items)),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
-
-// 购买商品
-pub async fn purchase_shop_item(
-    State(db): State<Database>,
-    auth_user: AuthenticatedUser,
-    Json(payload): Json<PurchaseItemRequest>,
-) -> Result<Json<PurchaseItemResponse>, StatusCode> {
-    let points_service = PointsService::new(db);
-    
-    match points_service.purchase_shop_item(&auth_user.user_id, &payload.item_id).await {
-        Ok(success) => {
-            Ok(Json(PurchaseItemResponse {
-                success,
-            }))
-        },
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
-
-// 获取用户购买记录
-pub async fn get_user_purchases(
-    State(db): State<Database>,
-    auth_user: AuthenticatedUser,
-) -> Result<Json<Vec<PurchaseRecord>>, StatusCode> {
-    let points_service = PointsService::new(db);
-    
-    match points_service.get_user_purchases(&auth_user.user_id, 50).await {
-        Ok(records) => Ok(Json(records)),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
@@ -339,9 +294,4 @@ pub fn points_routes() -> Router<Database> {
         // 幸运卡系统路由
         .route("/lucky-cards", get(get_valid_lucky_cards))
         .route("/lucky-cards/use", post(use_lucky_card))
-        
-        // 积分商城路由
-        .route("/shop", get(get_available_shop_items))
-        .route("/shop/purchase", post(purchase_shop_item))
-        .route("/shop/purchases", get(get_user_purchases))
 }

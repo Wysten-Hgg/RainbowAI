@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 
 use crate::models::{
     User, WalletTx, TxType, CurrencyType, Gift, GiftRecord, 
-    LuckyCard, CardLevel, ShopItem, PurchaseRecord
+    LuckyCard, CardLevel, ShopItem, PurchaseRecord, ShopItemCategory, MonthlyRedemptionStat
 };
 
 use super::surreal::Database;
@@ -458,6 +458,7 @@ impl Database {
                 item_id.to_string(),
                 item.price_hp,
                 None, // 暂不设置过期时间
+                None, // 无备注
             );
             
             // 扣减用户积分并创建购买记录
@@ -507,6 +508,263 @@ impl Database {
                 SELECT * FROM purchase_record 
                 WHERE user_id = $user_id
                 ORDER BY purchased_at DESC
+                LIMIT $limit
+            ")
+            .bind(("user_id", user_id))
+            .bind(("limit", limit))
+            .await?;
+        
+        Ok(result.take(0)?)
+    }
+    
+    // ==================== 积分商城操作扩展 ====================
+    
+    // 获取所有商品（包括不可见的，用于管理员）
+    pub async fn get_all_shop_items(&self) -> Result<Vec<ShopItem>, surrealdb::Error> {
+        let mut result = self
+            .client
+            .query("
+                SELECT * FROM shop_item 
+                ORDER BY created_at DESC
+            ")
+            .await?;
+        
+        Ok(result.take(0)?)
+    }
+    
+    // 根据分类获取可用商品
+    pub async fn get_available_shop_items_by_category(&self, category: &ShopItemCategory) 
+        -> Result<Vec<ShopItem>, surrealdb::Error> {
+        
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+        let category_str = match category {
+            ShopItemCategory::Coupon => "Coupon",
+            ShopItemCategory::Decoration => "Decoration",
+            ShopItemCategory::Function => "Function",
+        };
+        
+        let mut result = self
+            .client
+            .query("
+                SELECT * FROM shop_item 
+                WHERE 
+                    category = $category AND
+                    visible = true AND
+                    ((is_limited = false) OR 
+                    (is_limited = true AND available_until > $now)) AND
+                    (stock IS NONE OR stock > 0)
+                ORDER BY price_hp ASC
+            ")
+            .bind(("category", category_str))
+            .bind(("now", now))
+            .await?;
+        
+        Ok(result.take(0)?)
+    }
+    
+    // 更新商品信息
+    pub async fn update_shop_item(&self, item: &ShopItem) -> Result<(), surrealdb::Error> {
+        let result: Result<Option<ShopItem>, surrealdb::Error> = self.client
+            .update(("shop_item", &item.id))
+            .content(item)
+            .await;
+        
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+    
+    // 获取单个商品信息
+    pub async fn get_shop_item(&self, item_id: &str) -> Result<Option<ShopItem>, surrealdb::Error> {
+        self.client
+            .select(("shop_item", item_id))
+            .await
+    }
+    
+    // 删除商品
+    pub async fn delete_shop_item(&self, item_id: &str) -> Result<Option<ShopItem>, surrealdb::Error> {
+        self.client
+            .delete::<Option<ShopItem>>(("shop_item", item_id))
+            .await
+    }
+    
+    // 计算用户商品的折扣价格
+    pub async fn calculate_discounted_price(&self, user_id: &str, item_id: &str) 
+        -> Result<u32, surrealdb::Error> {
+        
+        // 获取用户信息
+        let user: Option<User> = self.client.select(("user", user_id)).await?;
+        
+        // 获取商品信息
+        let item: Option<ShopItem> = self.client.select(("shop_item", item_id)).await?;
+        
+        if let (Some(user), Some(item)) = (user, item) {
+            // 计算折扣价格
+            Ok(item.get_discounted_price(&user.vip_level))
+        } else {
+            Err(surrealdb::Error::Api(surrealdb::error::Api::Query(String::from("用户或商品不存在"))))
+        }
+    }
+    
+    // 兑换商品（扩展版，支持VIP折扣和月度限制）
+    pub async fn redeem_shop_item(&self, user_id: &str, item_id: &str, remark: Option<String>) 
+        -> Result<bool, surrealdb::Error> {
+        
+        // 获取商品信息
+        let item: Option<ShopItem> = self.client.select(("shop_item", item_id)).await?;
+        
+        if let Some(item) = item {
+            // 检查商品是否可用
+            if !item.is_available() {
+                return Ok(false);
+            }
+            
+            // 获取用户信息
+            let user: Option<User> = self.client.select(("user", user_id)).await?;
+            
+            if let Some(user) = user {
+                // 计算折扣价格
+                let price_to_pay = item.get_discounted_price(&user.vip_level);
+                
+                // 检查月度兑换限制
+                if let Some(monthly_limit) = item.monthly_limit {
+                    // 获取月度兑换统计
+                    let now = OffsetDateTime::now_utc();
+                    let year_month = format!("{}-{:02}", now.year(), now.month() as u8);
+                    let stat_id = format!("{}:{}", user_id, year_month);
+                    
+                    let mut stat: Option<MonthlyRedemptionStat> = self.client
+                        .select(("monthly_redemption_stat", &stat_id))
+                        .await?;
+                    
+                    if let Some(ref stat) = stat {
+                        let item_type_str = format!("{:?}", item.item_type);
+                        if !stat.check_monthly_limit(&item_type_str, monthly_limit) {
+                            return Ok(false); // 达到月度兑换上限
+                        }
+                    }
+                }
+                
+                // 创建购买记录
+                let purchase_record = PurchaseRecord::new(
+                    user_id.to_string(),
+                    item_id.to_string(),
+                    price_to_pay,
+                    None, // 暂不设置过期时间
+                    remark,
+                );
+                
+                // 扣减用户积分并创建购买记录
+                let deduct_result = self.deduct_user_hp(
+                    user_id, 
+                    price_to_pay, 
+                    TxType::PointsSpent, 
+                    Some(purchase_record.id.clone()),
+                    Some(format!("兑换商品: {}", item.name)),
+                ).await?;
+                
+                if deduct_result {
+                    // 创建购买记录
+                    self.client
+                        .create::<Option<PurchaseRecord>>(("purchase_record", &purchase_record.id))
+                        .content(&purchase_record)
+                        .await?;
+                    
+                    // 更新月度兑换统计
+                    let now = OffsetDateTime::now_utc();
+                    let year_month = format!("{}-{:02}", now.year(), now.month() as u8);
+                    let stat_id = format!("{}:{}", user_id, year_month);
+                    
+                    let mut stat: Option<MonthlyRedemptionStat> = self.client
+                        .select(("monthly_redemption_stat", &stat_id))
+                        .await?;
+                    
+                    if let Some(mut stat) = stat {
+                        // 更新现有统计
+                        let item_type_str = format!("{:?}", item.item_type);
+                        stat.record_redemption(&item_type_str, price_to_pay);
+                        
+                        self.client
+                            .update::<Option<MonthlyRedemptionStat>>(("monthly_redemption_stat", &stat_id))
+                            .content(&stat)
+                            .await?;
+                    } else {
+                        // 创建新的统计记录
+                        let mut new_stat = MonthlyRedemptionStat::new(user_id.to_string());
+                        let item_type_str = format!("{:?}", item.item_type);
+                        new_stat.record_redemption(&item_type_str, price_to_pay);
+                        
+                        self.client
+                            .create::<Option<MonthlyRedemptionStat>>(("monthly_redemption_stat", &new_stat.id))
+                            .content(&new_stat)
+                            .await?;
+                    }
+                    
+                    // 如果商品有库存限制，则减少库存
+                    if let Some(stock) = item.stock {
+                        if stock > 0 {
+                            self.client
+                                .query("
+                                    UPDATE shop_item:$item_id SET 
+                                        stock = $stock - 1
+                                ")
+                                .bind(("item_id", item_id))
+                                .bind(("stock", stock))
+                                .await?;
+                        }
+                    }
+                    
+                    // 处理卡券类商品
+                    if item.category == ShopItemCategory::Coupon {
+                        if let Some(coupon_id) = item.linked_coupon_id {
+                            // 获取卡券模板信息
+                            let coupon_template: Option<crate::models::coupon::CouponTemplate> = 
+                                self.client.select(("coupon_template", &coupon_id)).await?;
+                            
+                            if let Some(template) = coupon_template {
+                                // 创建用户卡券
+                                let new_coupon = crate::models::coupon::Coupon::new_from_template(
+                                    template,
+                                    user_id.to_string(),
+                                );
+                                
+                                self.create_coupon(&new_coupon).await?;
+                            }
+                        }
+                    }
+                    
+                    return Ok(true);
+                }
+            }
+        }
+        
+        Ok(false)
+    }
+    
+    // 获取用户月度兑换统计
+    pub async fn get_user_monthly_redemption_stat(&self, user_id: &str) 
+        -> Result<Option<MonthlyRedemptionStat>, surrealdb::Error> {
+        
+        let now = OffsetDateTime::now_utc();
+        let year_month = format!("{}-{:02}", now.year(), now.month() as u8);
+        let stat_id = format!("{}:{}", user_id, year_month);
+        
+        self.client
+            .select(("monthly_redemption_stat", &stat_id))
+            .await
+    }
+    
+    // 获取用户历史兑换统计
+    pub async fn get_user_redemption_history(&self, user_id: &str, limit: usize) 
+        -> Result<Vec<MonthlyRedemptionStat>, surrealdb::Error> {
+        
+        let mut result = self
+            .client
+            .query("
+                SELECT * FROM monthly_redemption_stat 
+                WHERE user_id = $user_id
+                ORDER BY year_month DESC
                 LIMIT $limit
             ")
             .bind(("user_id", user_id))

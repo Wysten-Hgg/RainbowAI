@@ -119,10 +119,16 @@ impl PointsService {
         Ok(None)
     }
     
+    // 获取用户有效的幸运卡
+    pub async fn get_user_valid_lucky_cards(&self, user_id: &str) -> Result<Vec<LuckyCard>, anyhow::Error> {
+        let cards = self.db.get_user_valid_lucky_cards(user_id).await?;
+        Ok(cards)
+    }
+    
     // 使用幸运卡
     pub async fn use_lucky_card(&self, user_id: &str, card_id: &str) -> Result<Option<f32>, anyhow::Error> {
         // 检查卡片是否属于该用户
-        let cards = self.db.get_user_valid_lucky_cards(user_id).await?;
+        let cards = self.get_user_valid_lucky_cards(user_id).await?;
         let card_belongs_to_user = cards.iter().any(|card| card.id == card_id);
         
         if card_belongs_to_user {

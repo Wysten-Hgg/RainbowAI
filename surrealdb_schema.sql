@@ -147,6 +147,11 @@ DEFINE FIELD is_limited ON shop_item TYPE bool;
 DEFINE FIELD available_until ON shop_item TYPE option<int>;
 DEFINE FIELD created_at ON shop_item TYPE int;
 DEFINE FIELD stock ON shop_item TYPE option<int>;
+DEFINE FIELD category ON shop_item TYPE string ASSERT $value IN ['Coupon', 'Decoration', 'Function'];
+DEFINE FIELD visible ON shop_item TYPE bool DEFAULT true;
+DEFINE FIELD linked_coupon_id ON shop_item TYPE option<string>;
+DEFINE FIELD monthly_limit ON shop_item TYPE option<int>;
+DEFINE FIELD vip_discount ON shop_item TYPE option<bool> DEFAULT false;
 
 -- 创建购买记录表
 DEFINE TABLE purchase_record SCHEMAFULL;
@@ -158,6 +163,16 @@ DEFINE FIELD purchased_at ON purchase_record TYPE int;
 DEFINE FIELD is_activated ON purchase_record TYPE bool DEFAULT false;
 DEFINE FIELD activated_at ON purchase_record TYPE option<int>;
 DEFINE FIELD expires_at ON purchase_record TYPE option<int>;
+DEFINE FIELD remark ON purchase_record TYPE option<string>;
+
+-- 创建月度兑换统计表
+DEFINE TABLE monthly_redemption_stat SCHEMAFULL;
+DEFINE FIELD id ON monthly_redemption_stat TYPE string ASSERT $value != NONE;
+DEFINE FIELD user_id ON monthly_redemption_stat TYPE string ASSERT $value != NONE;
+DEFINE FIELD year_month ON monthly_redemption_stat TYPE string;
+DEFINE FIELD item_type_counts ON monthly_redemption_stat TYPE object;
+DEFINE FIELD total_points_spent ON monthly_redemption_stat TYPE int DEFAULT 0;
+DEFINE FIELD updated_at ON monthly_redemption_stat TYPE int;
 
 -- 创建关系定义
 -- 用户与钱包交易记录的关系
@@ -170,6 +185,10 @@ DEFINE INDEX purchase_user_idx ON TABLE purchase_record COLUMNS user_id;
 DEFINE INDEX gift_sender_idx ON TABLE gift_record COLUMNS sender_id;
 -- 礼物记录与接收AI的关系
 DEFINE INDEX gift_receiver_idx ON TABLE gift_record COLUMNS receiver_ai_id;
+-- 用户与月度兑换统计的关系
+DEFINE INDEX monthly_redemption_user_idx ON TABLE monthly_redemption_stat COLUMNS user_id;
+-- 月度兑换统计的月份索引
+DEFINE INDEX monthly_redemption_month_idx ON TABLE monthly_redemption_stat COLUMNS year_month;
 
 -- 初始化一些基础礼物数据
 CREATE gift:heart SET 
@@ -202,30 +221,155 @@ CREATE gift:ring SET
     created_at = time::now(), 
     is_limited = false;
 
--- 初始化一些基础商城商品
-CREATE shop_item:ai_skin_1 SET 
-    name = 'AI星空皮肤', 
-    description = '为你的AI伴侣添加梦幻星空背景', 
-    item_type = 'AIDecoration', 
-    price_hp = 500, 
-    image_url = '/images/shop/ai_skin_1.png', 
-    is_limited = false, 
-    created_at = time::now();
+-- 初始化一些基础商城商品数据
 
-CREATE shop_item:user_title_1 SET 
-    name = '彩虹城贵宾', 
-    description = '专属称号，在社区中展示你的身份', 
-    item_type = 'UserTitle', 
-    price_hp = 1000, 
-    image_url = '/images/shop/user_title_1.png', 
-    is_limited = false, 
-    created_at = time::now();
+-- Pro 2天体验券
+CREATE shop_item:pro_2day_trial SET 
+    name = 'Pro 2天体验券',
+    description = '获得2天Pro会员体验权限',
+    item_type = 'LIOAccessTicket',
+    category = 'Coupon',
+    price_hp = 100,
+    image_url = '/images/shop/pro_trial.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true,
+    monthly_limit = 1;
 
-CREATE shop_item:lio_ticket SET 
-    name = 'LIO访问券', 
-    description = '获得额外的LIO互动机会', 
-    item_type = 'LIOAccessTicket', 
-    price_hp = 300, 
-    image_url = '/images/shop/lio_ticket.png', 
-    is_limited = false, 
-    created_at = time::now();
+-- Pro 一周体验券
+CREATE shop_item:pro_1week_trial SET 
+    name = 'Pro 一周体验券',
+    description = '获得7天Pro会员体验权限',
+    item_type = 'LIOAccessTicket',
+    category = 'Coupon',
+    price_hp = 300,
+    image_url = '/images/shop/pro_trial.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true,
+    monthly_limit = 1;
+
+-- Premium 一周体验券
+CREATE shop_item:premium_1week_trial SET 
+    name = 'Premium 一周体验券',
+    description = '获得7天Premium会员体验权限',
+    item_type = 'LIOAccessTicket',
+    category = 'Coupon',
+    price_hp = 900,
+    image_url = '/images/shop/premium_trial.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true,
+    monthly_limit = 1;
+
+-- 95折折扣券
+CREATE shop_item:discount_95 SET 
+    name = '95折折扣券',
+    description = '购买会员时享受95折优惠',
+    item_type = 'LIOAccessTicket',
+    category = 'Coupon',
+    price_hp = 300,
+    image_url = '/images/shop/discount.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = false,
+    monthly_limit = 2;
+
+-- 9折折扣券
+CREATE shop_item:discount_90 SET 
+    name = '9折折扣券',
+    description = '购买会员时享受9折优惠',
+    item_type = 'LIOAccessTicket',
+    category = 'Coupon',
+    price_hp = 500,
+    image_url = '/images/shop/discount.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = false,
+    monthly_limit = 1;
+
+-- $5 现金券
+CREATE shop_item:cash_5 SET 
+    name = '$5 现金券',
+    description = '价值5美元的现金抵扣券',
+    item_type = 'LIOAccessTicket',
+    category = 'Coupon',
+    price_hp = 500,
+    image_url = '/images/shop/cash.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true,
+    monthly_limit = 2;
+
+-- AI星空皮肤
+CREATE shop_item:ai_skin_starry SET 
+    name = 'AI星空皮肤',
+    description = '为你的AI伴侣添加梦幻星空背景',
+    item_type = 'AIDecoration',
+    category = 'Decoration',
+    price_hp = 500,
+    image_url = '/images/shop/ai_skin_starry.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true;
+
+-- 彩虹城贵宾称号
+CREATE shop_item:title_vip SET 
+    name = '彩虹城贵宾称号',
+    description = '专属称号，在社区中展示你的身份',
+    item_type = 'UserTitle',
+    category = 'Decoration',
+    price_hp = 1000,
+    image_url = '/images/shop/title_vip.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true;
+
+-- AI扩展名额
+CREATE shop_item:ai_slot_expansion SET 
+    name = 'AI伴侣扩展名额',
+    description = '增加一个AI伴侣名额',
+    item_type = 'AISlotExpansion',
+    category = 'Function',
+    price_hp = 10000,
+    image_url = '/images/shop/ai_slot.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true,
+    monthly_limit = 1;
+
+-- 更换AI伴侣名额
+CREATE shop_item:ai_replacement SET 
+    name = '更换AI伴侣名额',
+    description = '更换一个现有的AI伴侣',
+    item_type = 'AISlotExpansion',
+    category = 'Function',
+    price_hp = 10000,
+    image_url = '/images/shop/ai_replacement.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true,
+    monthly_limit = 1;
+
+-- 限定剧情解锁
+CREATE shop_item:exclusive_story SET 
+    name = '限定剧情解锁',
+    description = '解锁专属AI互动内容和故事',
+    item_type = 'ExclusiveStory',
+    category = 'Function',
+    price_hp = 2000,
+    image_url = '/images/shop/exclusive_story.png',
+    is_limited = false,
+    created_at = time::now(),
+    visible = true,
+    vip_discount = true;

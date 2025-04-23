@@ -10,11 +10,11 @@ pub mod lucky_card;
 pub mod point_shop;
 
 pub use user::{User, VipLevel, PromoterType, FrontendUserRole, VipLevelConfig};
-pub use ai::{AI, AIType, ColorSlot, AIStatus};
+pub use ai::{AI, AIType, AIStatus};
 pub use invite::Invite;
 pub use audit_log::{AuditLog, AuditAction};
 pub use verification::{EmailVerification, VerificationType};
 pub use wallet_tx::{WalletTx, TxType, CurrencyType};
 pub use gift::{Gift, GiftRecord, GiftEffectType};
 pub use lucky_card::{LuckyCard, CardLevel};
-pub use point_shop::{ShopItem, ShopItemType, PurchaseRecord};
+pub use point_shop::{ShopItem, ShopItemType, PurchaseRecord, ShopItemCategory, MonthlyRedemptionStat};

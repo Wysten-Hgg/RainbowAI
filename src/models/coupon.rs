@@ -1,4 +1,6 @@
 use serde::{Serialize, Deserialize};
+use uuid::Uuid;
+use time::{OffsetDateTime, Duration};
 
 #[derive(Serialize, Deserialize)]
 pub struct Coupon {
@@ -27,6 +29,34 @@ impl Coupon {
             issued_at,
             expires_at,
             is_transferable,
+        }
+    }
+    
+    // 从模板创建卡券
+    pub fn new_from_template(template: CouponTemplate, owner_id: String) -> Self {
+        let now = OffsetDateTime::now_utc();
+        let issued_at = now.to_string();
+        
+        // 计算过期时间
+        let expires_at = match template.duration_days {
+            Some(days) => {
+                let expire_time = now + Duration::days(days as i64);
+                expire_time.to_string()
+            },
+            None => "9999-12-31T23:59:59Z".to_string() // 无限期
+        };
+        
+        Self {
+            id: Uuid::new_v4().to_string(),
+            coupon_type: template.coupon_type,
+            sub_type: template.sub_type,
+            value: template.value,
+            duration_days: template.duration_days,
+            status: "active".to_string(),
+            owner_id,
+            issued_at,
+            expires_at,
+            is_transferable: template.is_transferable,
         }
     }
 }
@@ -59,4 +89,19 @@ pub struct CouponData {
     pub issued_at: String,
     pub expires_at: String,
     pub is_transferable: bool,
+}
+
+// 卡券模板
+#[derive(Serialize, Deserialize)]
+pub struct CouponTemplate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub coupon_type: String,
+    pub sub_type: String,
+    pub value: f32,
+    pub duration_days: Option<u32>,
+    pub is_transferable: bool,
+    pub created_at: String,
+    pub is_active: bool,
 }
