@@ -77,7 +77,13 @@ pub fn create_routes(db: Database) -> Router {
 
     let admin_routes = Router::new()
         .route("/user/role", post(admin::update_user_role))
-        .route("/audit-logs", get(admin::view_audit_logs));
+        .route("/audit-logs", get(admin::view_audit_logs))
+        .route("/gift/all", get(admin::admin_get_all_gifts))
+        .route("/gift/create", post(admin::admin_create_gift))
+        .route("/gift/update", post(admin::admin_update_gift))
+        .route("/gift/delete/:id", post(admin::admin_delete_gift))
+        .route("/gift/feedback/create", post(admin::admin_create_feedback_template))
+        .route("/gift/feedback/:category", get(admin::admin_get_feedback_templates));
 
     Router::new()
         .nest("/auth", auth_routes)

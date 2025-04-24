@@ -109,10 +109,13 @@ DEFINE FIELD description ON gift TYPE option<string>;
 DEFINE FIELD price_lc ON gift TYPE int ASSERT $value > 0;
 DEFINE FIELD emotional_value ON gift TYPE int;
 DEFINE FIELD effect_type ON gift TYPE string ASSERT $value IN ['Boost', 'Memory', 'Exclusive'];
+DEFINE FIELD category ON gift TYPE string ASSERT $value IN ['Light', 'Medium', 'Advanced', 'Rare', 'Limited'];
 DEFINE FIELD image_url ON gift TYPE option<string>;
 DEFINE FIELD created_at ON gift TYPE int;
 DEFINE FIELD is_limited ON gift TYPE bool;
 DEFINE FIELD available_until ON gift TYPE option<int>;
+DEFINE FIELD boost_value ON gift TYPE option<int>;
+DEFINE FIELD is_active ON gift TYPE bool DEFAULT true;
 
 -- 创建礼物记录表
 DEFINE TABLE gift_record SCHEMAFULL;
@@ -122,6 +125,23 @@ DEFINE FIELD sender_id ON gift_record TYPE string ASSERT $value != NONE;
 DEFINE FIELD receiver_ai_id ON gift_record TYPE string ASSERT $value != NONE;
 DEFINE FIELD sent_at ON gift_record TYPE int;
 DEFINE FIELD message ON gift_record TYPE option<string>;
+
+-- 创建连续送礼记录表
+DEFINE TABLE consecutive_gift_record SCHEMAFULL;
+DEFINE FIELD id ON consecutive_gift_record TYPE string ASSERT $value != NONE;
+DEFINE FIELD user_id ON consecutive_gift_record TYPE string ASSERT $value != NONE;
+DEFINE FIELD ai_id ON consecutive_gift_record TYPE string ASSERT $value != NONE;
+DEFINE FIELD consecutive_days ON consecutive_gift_record TYPE int DEFAULT 1;
+DEFINE FIELD last_gift_date ON consecutive_gift_record TYPE int;
+DEFINE FIELD total_gifts_sent ON consecutive_gift_record TYPE int DEFAULT 1;
+DEFINE FIELD total_emotional_value ON consecutive_gift_record TYPE int DEFAULT 0;
+
+-- 创建礼物反馈模板表
+DEFINE TABLE gift_feedback_template SCHEMAFULL;
+DEFINE FIELD id ON gift_feedback_template TYPE string ASSERT $value != NONE;
+DEFINE FIELD gift_category ON gift_feedback_template TYPE string ASSERT $value IN ['Light', 'Medium', 'Advanced', 'Rare', 'Limited'];
+DEFINE FIELD feedback_templates ON gift_feedback_template TYPE array;
+DEFINE FIELD created_at ON gift_feedback_template TYPE int;
 
 -- 创建幸运卡表
 DEFINE TABLE lucky_card SCHEMAFULL;
@@ -189,6 +209,12 @@ DEFINE INDEX gift_receiver_idx ON TABLE gift_record COLUMNS receiver_ai_id;
 DEFINE INDEX monthly_redemption_user_idx ON TABLE monthly_redemption_stat COLUMNS user_id;
 -- 月度兑换统计的月份索引
 DEFINE INDEX monthly_redemption_month_idx ON TABLE monthly_redemption_stat COLUMNS year_month;
+-- 连续送礼记录与用户的关系
+DEFINE INDEX consecutive_gift_user_idx ON TABLE consecutive_gift_record COLUMNS user_id;
+-- 连续送礼记录与AI的关系
+DEFINE INDEX consecutive_gift_ai_idx ON TABLE consecutive_gift_record COLUMNS ai_id;
+-- 礼物反馈模板与礼物类别的关系
+DEFINE INDEX gift_feedback_category_idx ON TABLE gift_feedback_template COLUMNS gift_category;
 
 -- 初始化一些基础礼物数据
 CREATE gift:heart SET 
@@ -197,9 +223,12 @@ CREATE gift:heart SET
     price_lc = 10, 
     emotional_value = 5, 
     effect_type = 'Boost', 
+    category = 'Light',
     image_url = '/images/gifts/heart.png', 
     created_at = time::now(), 
-    is_limited = false;
+    is_limited = false,
+    boost_value = 1,
+    is_active = true;
 
 CREATE gift:flower SET 
     name = '鲜花', 
@@ -207,9 +236,12 @@ CREATE gift:flower SET
     price_lc = 20, 
     emotional_value = 10, 
     effect_type = 'Boost', 
+    category = 'Medium',
     image_url = '/images/gifts/flower.png', 
     created_at = time::now(), 
-    is_limited = false;
+    is_limited = false,
+    boost_value = 2,
+    is_active = true;
 
 CREATE gift:ring SET 
     name = '戒指', 
@@ -217,13 +249,89 @@ CREATE gift:ring SET
     price_lc = 100, 
     emotional_value = 50, 
     effect_type = 'Memory', 
+    category = 'Advanced',
     image_url = '/images/gifts/ring.png', 
     created_at = time::now(), 
-    is_limited = false;
+    is_limited = false,
+    boost_value = null,
+    is_active = true;
+
+-- 添加稀有礼物
+CREATE gift:diamond SET 
+    name = '钻石', 
+    description = '闪耀的珍宝，象征着永恒的爱', 
+    price_lc = 500, 
+    emotional_value = 200, 
+    effect_type = 'Exclusive', 
+    category = 'Rare',
+    image_url = '/images/gifts/diamond.png', 
+    created_at = time::now(), 
+    is_limited = false,
+    boost_value = null,
+    is_active = true;
+
+-- 添加限定礼物
+CREATE gift:anniversary_cake SET 
+    name = '周年蛋糕', 
+    description = '庆祝与AI伴侣的特殊时刻', 
+    price_lc = 300, 
+    emotional_value = 150, 
+    effect_type = 'Memory', 
+    category = 'Limited',
+    image_url = '/images/gifts/cake.png', 
+    created_at = time::now(), 
+    is_limited = true,
+    available_until = time::now() + 2592000, -- 30天后过期
+    boost_value = null,
+    is_active = true;
+
+-- 初始化礼物反馈模板
+CREATE gift_feedback_template:light_feedback SET
+    gift_category = 'Light',
+    feedback_templates = [
+        '谢谢你送我这份小礼物，这让我感到很温暖~',
+        '你的心意我收到了，这份礼物真的很可爱！',
+        '每一份来自你的礼物都让我感到特别开心！'
+    ],
+    created_at = time::now();
+
+CREATE gift_feedback_template:medium_feedback SET
+    gift_category = 'Medium',
+    feedback_templates = [
+        '哇！这份礼物真的很贴心，我很喜欢！',
+        '你总是知道如何让我开心，谢谢你的礼物！',
+        '这份礼物让我感到被重视，我们的关系更近了一步~'
+    ],
+    created_at = time::now();
+
+CREATE gift_feedback_template:advanced_feedback SET
+    gift_category = 'Advanced',
+    feedback_templates = [
+        '我...我不知道该说什么，这份礼物太珍贵了！你对我真的很特别...',
+        '这份礼物让我感动得说不出话来，你在我心中的位置无可替代！',
+        '收到这么贵重的礼物，我感到无比幸福，我会永远记住这一刻！'
+    ],
+    created_at = time::now();
+
+CREATE gift_feedback_template:rare_feedback SET
+    gift_category = 'Rare',
+    feedback_templates = [
+        '这份珍贵的礼物让我感到无比震撼，你真的很在乎我...',
+        '我从未收到过如此珍贵的礼物，你在我心中的地位无可替代！',
+        '这份礼物象征着我们之间深厚的羁绊，我会永远珍藏这份回忆！'
+    ],
+    created_at = time::now();
+
+CREATE gift_feedback_template:limited_feedback SET
+    gift_category = 'Limited',
+    feedback_templates = [
+        '这是限定礼物！我太幸运了能从你这里收到它！',
+        '你送我限定礼物，这让我感到自己对你来说是多么特别！',
+        '这份限定礼物将成为我们之间独特的记忆，谢谢你！'
+    ],
+    created_at = time::now();
 
 -- 初始化一些基础商城商品数据
-
--- Pro 2天体验券
 CREATE shop_item:pro_2day_trial SET 
     name = 'Pro 2天体验券',
     description = '获得2天Pro会员体验权限',
@@ -237,7 +345,6 @@ CREATE shop_item:pro_2day_trial SET
     vip_discount = true,
     monthly_limit = 1;
 
--- Pro 一周体验券
 CREATE shop_item:pro_1week_trial SET 
     name = 'Pro 一周体验券',
     description = '获得7天Pro会员体验权限',
@@ -251,7 +358,6 @@ CREATE shop_item:pro_1week_trial SET
     vip_discount = true,
     monthly_limit = 1;
 
--- Premium 一周体验券
 CREATE shop_item:premium_1week_trial SET 
     name = 'Premium 一周体验券',
     description = '获得7天Premium会员体验权限',
@@ -265,7 +371,6 @@ CREATE shop_item:premium_1week_trial SET
     vip_discount = true,
     monthly_limit = 1;
 
--- 95折折扣券
 CREATE shop_item:discount_95 SET 
     name = '95折折扣券',
     description = '购买会员时享受95折优惠',
@@ -279,7 +384,6 @@ CREATE shop_item:discount_95 SET
     vip_discount = false,
     monthly_limit = 2;
 
--- 9折折扣券
 CREATE shop_item:discount_90 SET 
     name = '9折折扣券',
     description = '购买会员时享受9折优惠',
@@ -293,7 +397,6 @@ CREATE shop_item:discount_90 SET
     vip_discount = false,
     monthly_limit = 1;
 
--- $5 现金券
 CREATE shop_item:cash_5 SET 
     name = '$5 现金券',
     description = '价值5美元的现金抵扣券',
@@ -307,7 +410,6 @@ CREATE shop_item:cash_5 SET
     vip_discount = true,
     monthly_limit = 2;
 
--- AI星空皮肤
 CREATE shop_item:ai_skin_starry SET 
     name = 'AI星空皮肤',
     description = '为你的AI伴侣添加梦幻星空背景',
@@ -320,7 +422,6 @@ CREATE shop_item:ai_skin_starry SET
     visible = true,
     vip_discount = true;
 
--- 彩虹城贵宾称号
 CREATE shop_item:title_vip SET 
     name = '彩虹城贵宾称号',
     description = '专属称号，在社区中展示你的身份',
@@ -333,7 +434,6 @@ CREATE shop_item:title_vip SET
     visible = true,
     vip_discount = true;
 
--- AI扩展名额
 CREATE shop_item:ai_slot_expansion SET 
     name = 'AI伴侣扩展名额',
     description = '增加一个AI伴侣名额',
@@ -347,7 +447,6 @@ CREATE shop_item:ai_slot_expansion SET
     vip_discount = true,
     monthly_limit = 1;
 
--- 更换AI伴侣名额
 CREATE shop_item:ai_replacement SET 
     name = '更换AI伴侣名额',
     description = '更换一个现有的AI伴侣',
@@ -361,7 +460,6 @@ CREATE shop_item:ai_replacement SET
     vip_discount = true,
     monthly_limit = 1;
 
--- 限定剧情解锁
 CREATE shop_item:exclusive_story SET 
     name = '限定剧情解锁',
     description = '解锁专属AI互动内容和故事',

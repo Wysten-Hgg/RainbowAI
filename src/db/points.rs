@@ -4,7 +4,8 @@ use time::OffsetDateTime;
 
 use crate::models::{
     User, WalletTx, TxType, CurrencyType, Gift, GiftRecord, 
-    LuckyCard, CardLevel, ShopItem, PurchaseRecord, ShopItemCategory, MonthlyRedemptionStat
+    LuckyCard, CardLevel, ShopItem, PurchaseRecord, ShopItemCategory, MonthlyRedemptionStat,
+    ConsecutiveGiftRecord, GiftFeedbackTemplate, GiftCategory,
 };
 
 use super::surreal::Database;
@@ -243,6 +244,33 @@ impl Database {
         Ok(())
     }
     
+    // 更新礼物
+    pub async fn update_gift(&self, gift: &Gift) -> Result<(), surrealdb::Error> {
+        self.client
+            .update::<Option<Gift>>(("gift", &gift.id))
+            .content(gift)
+            .await?;
+        Ok(())
+    }
+    
+    // 删除礼物
+    pub async fn delete_gift(&self, gift_id: &str) -> Result<(), surrealdb::Error> {
+        self.client
+            .delete::<Option<Gift>>(("gift", gift_id))
+            .await?;
+        Ok(())
+    }
+    
+    // 获取所有礼物（包括不可用的，管理员用）
+    pub async fn get_all_gifts(&self) -> Result<Vec<Gift>, surrealdb::Error> {
+        let mut result = self
+            .client
+            .query("SELECT * FROM gift ORDER BY created_at DESC")
+            .await?;
+        
+        Ok(result.take(0)?)
+    }
+    
     // 获取所有可用礼物
     pub async fn get_available_gifts(&self) -> Result<Vec<Gift>, surrealdb::Error> {
         let now = OffsetDateTime::now_utc().unix_timestamp();
@@ -252,13 +280,19 @@ impl Database {
             .query("
                 SELECT * FROM gift 
                 WHERE 
-                    (is_limited = false) OR 
-                    (is_limited = true AND available_until > $now)
+                    is_active = true AND
+                    ((is_limited = false) OR 
+                    (is_limited = true AND available_until > $now))
             ")
             .bind(("now", now))
             .await?;
         
         Ok(result.take(0)?)
+    }
+    
+    // 获取礼物详情
+    pub async fn get_gift_by_id(&self, gift_id: &str) -> Result<Option<Gift>, surrealdb::Error> {
+        self.client.select(("gift", gift_id)).await
     }
     
     // 赠送礼物
@@ -271,7 +305,7 @@ impl Database {
         if let Some(gift) = gift {
             // 检查礼物是否可用
             let now = OffsetDateTime::now_utc().unix_timestamp();
-            if gift.is_limited && gift.available_until.unwrap_or(0) <= now {
+            if !gift.is_active || (gift.is_limited && gift.available_until.unwrap_or(0) <= now) {
                 return Ok(false);
             }
             
@@ -298,6 +332,9 @@ impl Database {
                     .create::<Option<GiftRecord>>(("gift_record", &gift_record.id))
                     .content(&gift_record)
                     .await?;
+                
+                // 更新连续送礼记录
+                self.update_consecutive_gift_record(sender_id, receiver_ai_id, &gift).await?;
                 
                 return Ok(true);
             }
@@ -339,6 +376,116 @@ impl Database {
             ")
             .bind(("ai_id", ai_id))
             .bind(("limit", limit))
+            .await?;
+        
+        Ok(result.take(0)?)
+    }
+    
+    // 更新连续送礼记录
+    pub async fn update_consecutive_gift_record(&self, user_id: &str, ai_id: &str, gift: &Gift) 
+        -> Result<ConsecutiveGiftRecord, surrealdb::Error> {
+        
+        // 查询是否存在连续送礼记录
+        let mut result = self
+            .client
+            .query("
+                SELECT * FROM consecutive_gift_record 
+                WHERE user_id = $user_id AND ai_id = $ai_id
+                LIMIT 1
+            ")
+            .bind(("user_id", user_id))
+            .bind(("ai_id", ai_id))
+            .await?;
+        
+        let records: Vec<ConsecutiveGiftRecord> = result.take(0)?;
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+        let today_start = now - (now % 86400); // 当天0点的时间戳
+        
+        if let Some(mut record) = records.into_iter().next() {
+            // 检查是否是连续的（同一天内多次送礼只算一次）
+            let last_gift_day = record.last_gift_date - (record.last_gift_date % 86400);
+            
+            if last_gift_day < today_start {
+                // 不是同一天
+                if last_gift_day + 86400 >= today_start {
+                    // 是连续的（昨天送过礼物）
+                    record.consecutive_days += 1;
+                } else {
+                    // 不是连续的
+                    record.consecutive_days = 1;
+                }
+                record.last_gift_date = now;
+            }
+            
+            // 更新总计数据
+            record.total_gifts_sent += 1;
+            record.total_emotional_value += gift.emotional_value;
+            
+            // 更新记录
+            self.client
+                .update::<Option<ConsecutiveGiftRecord>>(("consecutive_gift_record", &record.id))
+                .content(&record)
+                .await?;
+            
+            Ok(record)
+        } else {
+            // 创建新记录
+            let record = ConsecutiveGiftRecord::new(
+                user_id.to_string(),
+                ai_id.to_string(),
+            );
+            
+            self.client
+                .create::<Option<ConsecutiveGiftRecord>>(("consecutive_gift_record", &record.id))
+                .content(&record)
+                .await?;
+            
+            Ok(record)
+        }
+    }
+    
+    // 获取用户与AI的连续送礼记录
+    pub async fn get_consecutive_gift_record(&self, user_id: &str, ai_id: &str) 
+        -> Result<Option<ConsecutiveGiftRecord>, surrealdb::Error> {
+        
+        let mut result = self
+            .client
+            .query("
+                SELECT * FROM consecutive_gift_record 
+                WHERE user_id = $user_id AND ai_id = $ai_id
+                LIMIT 1
+            ")
+            .bind(("user_id", user_id))
+            .bind(("ai_id", ai_id))
+            .await?;
+        
+        let records: Vec<ConsecutiveGiftRecord> = result.take(0)?;
+        Ok(records.into_iter().next())
+    }
+    
+    // 创建礼物反馈模板
+    pub async fn create_gift_feedback_template(&self, template: &GiftFeedbackTemplate) 
+        -> Result<(), surrealdb::Error> {
+        
+        self.client
+            .create::<Option<GiftFeedbackTemplate>>(("gift_feedback_template", &template.id))
+            .content(template)
+            .await?;
+        
+        Ok(())
+    }
+    
+    // 获取礼物反馈模板
+    pub async fn get_gift_feedback_templates(&self, category: &GiftCategory) 
+        -> Result<Vec<GiftFeedbackTemplate>, surrealdb::Error> {
+        
+        let mut result = self
+            .client
+            .query("
+                SELECT * FROM gift_feedback_template 
+                WHERE gift_category = $category
+            ")
+            .bind(("category", category))
             .await?;
         
         Ok(result.take(0)?)

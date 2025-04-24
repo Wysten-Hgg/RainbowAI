@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 
 use crate::db::Database;
 use crate::models::{
-    WalletTx, CurrencyType, Gift, GiftRecord, LuckyCard, TxType
+    WalletTx, CurrencyType, Gift, GiftRecord, LuckyCard, TxType, ConsecutiveGiftRecord,
 };
 use crate::services::PointsService;
 use crate::middleware::auth::AuthenticatedUser;
@@ -67,6 +67,18 @@ pub struct RechargeLCResponse {
 pub struct WalletInfoResponse {
     hp: u32,
     lc_balance: u32,
+}
+
+#[derive(Serialize)]
+pub struct ConsecutiveGiftResponse {
+    record: Option<ConsecutiveGiftRecord>,
+}
+
+#[derive(Serialize)]
+pub struct GiftFeedbackResponse {
+    feedback: Option<String>,
+    emotional_value: u32,
+    boost_value: Option<u32>,
 }
 
 // ==================== 路由处理函数 ====================
@@ -271,6 +283,64 @@ pub async fn use_lucky_card(
     }
 }
 
+// 获取用户与AI的连续送礼记录
+#[axum::debug_handler]
+pub async fn get_consecutive_gift_record(
+    State(db): State<Database>,
+    auth_user: AuthenticatedUser,
+    Path(ai_id): Path<String>,
+) -> Result<Json<ConsecutiveGiftResponse>, StatusCode> {
+    let points_service = PointsService::new(db);
+    
+    let record = points_service.get_consecutive_gift_record(&auth_user.user_id, &ai_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    Ok(Json(ConsecutiveGiftResponse { record }))
+}
+
+// 获取礼物反馈
+#[axum::debug_handler]
+pub async fn get_gift_feedback(
+    State(db): State<Database>,
+    auth_user: AuthenticatedUser,
+    Path((gift_id, ai_id)): Path<(String, String)>,
+) -> Result<Json<GiftFeedbackResponse>, StatusCode> {
+    let points_service = PointsService::new(db);
+    
+    // 获取礼物信息
+    let gift = points_service.get_gift_by_id(&gift_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    // 获取该类别的反馈模板
+    let templates = points_service.get_gift_feedback_templates(&gift.category)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // 随机选择一个反馈模板
+    let feedback = if !templates.is_empty() {
+        let random_index = rand::random::<usize>() % templates.len();
+        let template = &templates[random_index];
+        
+        if !template.feedback_templates.is_empty() {
+            let random_template_index = rand::random::<usize>() % template.feedback_templates.len();
+            Some(template.feedback_templates[random_template_index].clone())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    
+    Ok(Json(GiftFeedbackResponse {
+        feedback,
+        emotional_value: gift.emotional_value,
+        boost_value: gift.boost_value,
+    }))
+}
+
 // ==================== 路由配置 ====================
 
 pub fn points_routes() -> Router<Database> {
@@ -286,12 +356,14 @@ pub fn points_routes() -> Router<Database> {
         .route("/wallet/lc/transactions", get(get_lc_transactions))
         
         // 礼物系统路由
-        .route("/gifts", get(get_available_gifts))
-        .route("/gifts/send", post(send_gift))
-        .route("/gifts/sent", get(get_sent_gifts))
-        .route("/gifts/received/:ai_id", get(get_ai_received_gifts))
+        .route("/gift/send", post(send_gift))
+        .route("/gift/available", get(get_available_gifts))
+        .route("/gift/sent", get(get_sent_gifts))
+        .route("/gift/received/:ai_id", get(get_ai_received_gifts))
+        .route("/gift/consecutive/:ai_id", get(get_consecutive_gift_record))
+        .route("/gift/feedback/:gift_id/:ai_id", get(get_gift_feedback))
         
         // 幸运卡系统路由
-        .route("/lucky-cards", get(get_valid_lucky_cards))
-        .route("/lucky-cards/use", post(use_lucky_card))
+        .route("/lucky-card/use", post(use_lucky_card))
+        .route("/lucky-card/my", get(get_valid_lucky_cards))
 }
