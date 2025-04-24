@@ -10,8 +10,9 @@ use time::OffsetDateTime;
 
 use crate::db::Database;
 use crate::models::{
-    WalletTx, CurrencyType, Gift, GiftRecord, LuckyCard, TxType, ConsecutiveGiftRecord,
+    WalletTx, CurrencyType, Gift, GiftRecord, LuckyCard, TxType,
 };
+use crate::models::gift::ConsecutiveGiftRecord;
 use crate::services::PointsService;
 use crate::middleware::auth::AuthenticatedUser;
 

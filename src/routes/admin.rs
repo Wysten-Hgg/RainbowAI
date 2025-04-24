@@ -109,8 +109,9 @@ pub async fn view_audit_logs(
 
 // ==================== 礼物管理接口 ====================
 
-use crate::models::{Gift, GiftEffectType, GiftCategory, GiftFeedbackTemplate};
-use crate::db::points::PointsService;
+use crate::models::{Gift, GiftEffectType};
+use crate::models::gift::{GiftCategory, GiftFeedbackTemplate};
+use crate::services::PointsService;
 
 #[derive(Serialize)]
 pub struct GiftListResponse {
@@ -410,7 +411,7 @@ pub async fn admin_create_feedback_template(
 pub async fn admin_get_feedback_templates(
     State(db): State<Database>,
     auth_user: AuthenticatedUser,
-    Path(category): Path<GiftCategory>,
+    Path(category_str): Path<String>,
 ) -> Result<Json<FeedbackTemplateListResponse>, StatusCode> {
     // 验证管理员权限
     let admin = db.get_user_by_id(&auth_user.user_id)
@@ -421,6 +422,16 @@ pub async fn admin_get_feedback_templates(
     if !admin.is_admin() {
         return Err(StatusCode::FORBIDDEN);
     }
+    
+    // 将字符串转换为GiftCategory
+    let category = match category_str.as_str() {
+        "Light" => GiftCategory::Light,
+        "Medium" => GiftCategory::Medium,
+        "Advanced" => GiftCategory::Advanced,
+        "Rare" => GiftCategory::Rare,
+        "Limited" => GiftCategory::Limited,
+        _ => return Err(StatusCode::BAD_REQUEST),
+    };
 
     // 获取反馈模板
     let points_service = PointsService::new(db);

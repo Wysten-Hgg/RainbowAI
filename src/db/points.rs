@@ -5,8 +5,8 @@ use time::OffsetDateTime;
 use crate::models::{
     User, WalletTx, TxType, CurrencyType, Gift, GiftRecord, 
     LuckyCard, CardLevel, ShopItem, PurchaseRecord, ShopItemCategory, MonthlyRedemptionStat,
-    ConsecutiveGiftRecord, GiftFeedbackTemplate, GiftCategory,
 };
+use crate::models::gift::{ConsecutiveGiftRecord, GiftFeedbackTemplate, GiftCategory};
 
 use super::surreal::Database;
 

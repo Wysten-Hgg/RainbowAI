@@ -4,6 +4,7 @@ use crate::models::{
     LuckyCard, CardLevel, ShopItem, ShopItemType, PurchaseRecord,
     FrontendUserRole
 };
+use crate::models::gift::{ConsecutiveGiftRecord, GiftFeedbackTemplate, GiftCategory};
 use time::OffsetDateTime;
 use rand::Rng;
 
@@ -165,6 +166,49 @@ impl PointsService {
     pub async fn get_ai_received_gifts(&self, ai_id: &str, limit: usize) -> Result<Vec<GiftRecord>, anyhow::Error> {
         let records = self.db.get_ai_received_gifts(ai_id, limit).await?;
         Ok(records)
+    }
+    
+    // 创建礼物
+    pub async fn create_gift(&self, gift: &Gift) -> Result<(), anyhow::Error> {
+        self.db.create_gift(gift).await.map_err(|e| anyhow::anyhow!(e))
+    }
+    
+    // 更新礼物
+    pub async fn update_gift(&self, gift: &Gift) -> Result<(), anyhow::Error> {
+        self.db.update_gift(gift).await.map_err(|e| anyhow::anyhow!(e))
+    }
+    
+    // 删除礼物
+    pub async fn delete_gift(&self, gift_id: &str) -> Result<(), anyhow::Error> {
+        self.db.delete_gift(gift_id).await.map_err(|e| anyhow::anyhow!(e))
+    }
+    
+    // 获取所有礼物（管理员用）
+    pub async fn get_all_gifts(&self) -> Result<Vec<Gift>, anyhow::Error> {
+        self.db.get_all_gifts().await.map_err(|e| anyhow::anyhow!(e))
+    }
+    
+    // 获取礼物详情
+    pub async fn get_gift_by_id(&self, gift_id: &str) -> Result<Option<Gift>, anyhow::Error> {
+        self.db.get_gift_by_id(gift_id).await.map_err(|e| anyhow::anyhow!(e))
+    }
+    
+    // 获取连续送礼记录
+    pub async fn get_consecutive_gift_record(&self, user_id: &str, ai_id: &str) 
+        -> Result<Option<ConsecutiveGiftRecord>, anyhow::Error> {
+        self.db.get_consecutive_gift_record(user_id, ai_id).await.map_err(|e| anyhow::anyhow!(e))
+    }
+    
+    // 创建礼物反馈模板
+    pub async fn create_gift_feedback_template(&self, template: &GiftFeedbackTemplate) 
+        -> Result<(), anyhow::Error> {
+        self.db.create_gift_feedback_template(template).await.map_err(|e| anyhow::anyhow!(e))
+    }
+    
+    // 获取礼物反馈模板
+    pub async fn get_gift_feedback_templates(&self, category: &GiftCategory) 
+        -> Result<Vec<GiftFeedbackTemplate>, anyhow::Error> {
+        self.db.get_gift_feedback_templates(category).await.map_err(|e| anyhow::anyhow!(e))
     }
     
     // ==================== 积分商城系统 ====================
