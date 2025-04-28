@@ -216,6 +216,68 @@ DEFINE INDEX consecutive_gift_ai_idx ON TABLE consecutive_gift_record COLUMNS ai
 -- 礼物反馈模板与礼物类别的关系
 DEFINE INDEX gift_feedback_category_idx ON TABLE gift_feedback_template COLUMNS gift_category;
 
+-- 创建推广者表
+DEFINE TABLE promoter SCHEMAFULL;
+DEFINE FIELD id ON promoter TYPE string ASSERT $value != NONE;
+DEFINE FIELD user_id ON promoter TYPE string ASSERT $value != NONE;
+DEFINE FIELD promoter_type ON promoter TYPE string ASSERT $value != NONE;
+DEFINE FIELD invite_code ON promoter TYPE string ASSERT $value != NONE;
+DEFINE FIELD commission_rate ON promoter TYPE float ASSERT $value >= 0;
+DEFINE FIELD renewal_rate ON promoter TYPE float ASSERT $value >= 0;
+DEFINE FIELD total_commission ON promoter TYPE float DEFAULT 0;
+DEFINE FIELD pending_commission ON promoter TYPE float DEFAULT 0;
+DEFINE FIELD wallet_account ON promoter TYPE string;
+DEFINE FIELD verification_status ON promoter TYPE string DEFAULT "Pending";
+DEFINE FIELD id_document ON promoter TYPE option<string>;
+DEFINE FIELD agreement_signed ON promoter TYPE bool DEFAULT false;
+DEFINE FIELD created_at ON promoter TYPE int;
+DEFINE FIELD updated_at ON promoter TYPE int;
+DEFINE INDEX promoter_user_id ON promoter FIELDS user_id UNIQUE;
+DEFINE INDEX promoter_invite_code ON promoter FIELDS invite_code UNIQUE;
+
+-- 创建推广记录表
+DEFINE TABLE promotion_record SCHEMAFULL;
+DEFINE FIELD id ON promotion_record TYPE string ASSERT $value != NONE;
+DEFINE FIELD promoter_id ON promotion_record TYPE string ASSERT $value != NONE;
+DEFINE FIELD invited_user_id ON promotion_record TYPE string ASSERT $value != NONE;
+DEFINE FIELD first_payment ON promotion_record TYPE bool DEFAULT false;
+DEFINE FIELD renewal_payment ON promotion_record TYPE bool DEFAULT false;
+DEFINE FIELD payment_amount ON promotion_record TYPE float DEFAULT 0;
+DEFINE FIELD commission_amount ON promotion_record TYPE float DEFAULT 0;
+DEFINE FIELD created_at ON promotion_record TYPE int;
+DEFINE INDEX promotion_record_promoter_id ON promotion_record FIELDS promoter_id;
+DEFINE INDEX promotion_record_invited_user ON promotion_record FIELDS invited_user_id;
+
+-- 创建佣金记录表
+DEFINE TABLE commission_log SCHEMAFULL;
+DEFINE FIELD id ON commission_log TYPE string ASSERT $value != NONE;
+DEFINE FIELD promoter_id ON commission_log TYPE string ASSERT $value != NONE;
+DEFINE FIELD amount ON commission_log TYPE float ASSERT $value > 0;
+DEFINE FIELD commission_type ON commission_log TYPE string ASSERT $value != NONE;
+DEFINE FIELD currency ON commission_log TYPE string ASSERT $value != NONE;
+DEFINE FIELD status ON commission_log TYPE string DEFAULT "Pending";
+DEFINE FIELD transaction_id ON commission_log TYPE option<string>;
+DEFINE FIELD created_at ON commission_log TYPE int;
+DEFINE FIELD updated_at ON commission_log TYPE int;
+DEFINE INDEX commission_log_promoter_id ON commission_log FIELDS promoter_id;
+
+-- 创建提现请求表
+DEFINE TABLE withdrawal_request SCHEMAFULL;
+DEFINE FIELD id ON withdrawal_request TYPE string ASSERT $value != NONE;
+DEFINE FIELD promoter_id ON withdrawal_request TYPE string ASSERT $value != NONE;
+DEFINE FIELD amount ON withdrawal_request TYPE float ASSERT $value > 0;
+DEFINE FIELD currency ON withdrawal_request TYPE string ASSERT $value != NONE;
+DEFINE FIELD payment_method ON withdrawal_request TYPE string ASSERT $value != NONE;
+DEFINE FIELD account_info ON withdrawal_request TYPE string ASSERT $value != NONE;
+DEFINE FIELD status ON withdrawal_request TYPE string DEFAULT "Pending";
+DEFINE FIELD created_at ON withdrawal_request TYPE int;
+DEFINE FIELD updated_at ON withdrawal_request TYPE int;
+DEFINE INDEX withdrawal_request_promoter_id ON withdrawal_request FIELDS promoter_id;
+
+-- 初始化测试数据
+-- INSERT INTO promoter (id, user_id, promoter_type, invite_code, commission_rate, renewal_rate, wallet_account, verification_status, agreement_signed, created_at, updated_at) 
+-- VALUES ('promoter:test1', 'user:admin', 'Individual', 'TESTCODE123', 0.08, 0.05, 'paypal:test@example.com', 'Approved', true, time::now(), time::now());
+
 -- 初始化一些基础礼物数据
 CREATE gift:heart SET 
     name = '爱心', 

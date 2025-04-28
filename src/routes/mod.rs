@@ -6,6 +6,8 @@ pub mod points;
 pub mod store;
 pub mod invite;
 pub mod admin;
+pub mod promoter;
+pub mod audit;
 
 use axum::{
     Router,
@@ -73,7 +75,9 @@ pub fn create_routes(db: Database) -> Router {
 
     let invite_routes = Router::new()
         .route("/create", post(invite::create_invite))
-        .route("/use", post(invite::use_invite));
+        .route("/use", post(invite::use_invite))
+        .layer(middleware::map_response(auth_middleware))
+        .with_state(db.clone());
 
     let admin_routes = Router::new()
         .route("/user/role", post(admin::update_user_role))
@@ -83,7 +87,16 @@ pub fn create_routes(db: Database) -> Router {
         .route("/gift/update", post(admin::admin_update_gift))
         .route("/gift/delete/:id", post(admin::admin_delete_gift))
         .route("/gift/feedback/create", post(admin::admin_create_feedback_template))
-        .route("/gift/feedback/:category", get(admin::admin_get_feedback_templates));
+        .route("/gift/feedback/:category", get(admin::admin_get_feedback_templates))
+        .nest("/promoter", promoter::admin_promoter_routes())
+        .layer(middleware::map_response(auth_middleware))
+        .with_state(db.clone());
+
+    // 添加推广者路由
+    let promoter_routes = Router::new()
+        .merge(promoter::promoter_routes())
+        .layer(middleware::map_response(auth_middleware))
+        .with_state(db.clone());
 
     Router::new()
         .nest("/auth", auth_routes)
@@ -95,5 +108,6 @@ pub fn create_routes(db: Database) -> Router {
         .nest("/admin/store", admin_store_routes)
         .nest("/invite", invite_routes)
         .nest("/admin", admin_routes)
+        .nest("/promoter", promoter_routes)
         .with_state(db)
 }

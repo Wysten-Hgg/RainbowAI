@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use bcrypt::{hash, DEFAULT_COST};
 use time::{OffsetDateTime};
 
-use crate::{models::{User, VipLevel, EmailVerification, VerificationType}, db::Database, utils::jwt, services::EmailService};
+use crate::{models::{User, VipLevel, EmailVerification, VerificationType}, db::Database, utils::jwt, services::{EmailService, PromoterService}};
 
 #[derive(Deserialize)]
 pub struct RegisterPayload {
@@ -90,14 +90,22 @@ pub async fn register(
     user.vip_level = VipLevel::Free; // 用户验证邮箱后才会升级为Pro
     user.is_email_verified = false;  // 标记为未验证
     
-    // 如果有邀请码，设置邀请人信息
-    if let Some(invite_code) = payload.invite_code {
-        user.invited_by = Some(invite_code);
+    // 如果有邀请码，设置邀请人信息并处理推广记录
+    if let Some(invite_code) = payload.invite_code.clone() {
+        user.invited_by = Some(invite_code.clone());
+        
+        // 保存用户到数据库
+        db.create_user(&user).await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+        // 处理推广记录
+        let promoter_service = PromoterService::new(db.clone());
+        let _ = promoter_service.process_invite_code(&user.id, &invite_code).await;
+    } else {
+        // 保存用户到数据库
+        db.create_user(&user).await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
-    
-    // 保存用户到数据库
-    db.create_user(&user).await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
     // 发送验证邮件
     match EmailService::new() {
