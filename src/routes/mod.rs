@@ -8,6 +8,9 @@ pub mod invite;
 pub mod admin;
 pub mod promoter;
 pub mod audit;
+pub mod im;
+pub mod friend;
+pub mod group;
 
 use axum::{
     Router,
@@ -17,6 +20,8 @@ use axum::{
 
 use crate::db::Database;
 use crate::middleware::auth::auth_middleware;
+use crate::services::FileStorage;
+use std::sync::Arc;
 
 pub fn create_routes(db: Database) -> Router {
     let auth_routes = Router::new()
@@ -97,6 +102,27 @@ pub fn create_routes(db: Database) -> Router {
         .merge(promoter::promoter_routes())
         .layer(middleware::map_response(auth_middleware))
         .with_state(db.clone());
+        
+    // 创建文件存储服务
+    let file_storage = Arc::new(FileStorage::new("./uploads"));
+    
+    // 添加IM相关路由
+    let im_routes = Router::new()
+        .merge(im::create_im_routes(db.clone(), file_storage.clone()))
+        .layer(middleware::map_response(auth_middleware))
+        .with_state(db.clone());
+    
+    // 添加好友相关路由
+    let friend_routes = Router::new()
+        .merge(friend::create_friend_routes(db.clone(), file_storage.clone()))
+        .layer(middleware::map_response(auth_middleware))
+        .with_state(db.clone());
+    
+    // 添加群组相关路由
+    let group_routes = Router::new()
+        .merge(group::create_group_routes(db.clone(), file_storage.clone()))
+        .layer(middleware::map_response(auth_middleware))
+        .with_state(db.clone());
 
     Router::new()
         .nest("/auth", auth_routes)
@@ -109,5 +135,8 @@ pub fn create_routes(db: Database) -> Router {
         .nest("/invite", invite_routes)
         .nest("/admin", admin_routes)
         .nest("/promoter", promoter_routes)
+        .nest("/im", im_routes)
+        .nest("/friend", friend_routes)
+        .nest("/group", group_routes)
         .with_state(db)
 }

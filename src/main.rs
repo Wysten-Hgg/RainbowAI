@@ -26,7 +26,7 @@ async fn main() {
         .expect("Failed to initialize database");
     
     // 创建应用路由
-    let app = routes::create_routes(db);
+    let app = routes::create_routes(db.clone());
     
     // 从环境变量获取服务器地址和端口
     let host = env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
@@ -35,9 +35,24 @@ async fn main() {
         .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(3000);
     
-    // 启动服务器
+    // 启动WebSocket服务
+    let ws_host = env::var("WS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let ws_port = env::var("WS_PORT")
+        .ok()
+        .and_then(|p| p.parse::<u16>().ok())
+        .unwrap_or(3001);
+    let ws_addr = format!("{}:{}", ws_host, ws_port);
+    
+    // 在单独的任务中启动WebSocket服务
+    let ws_db = db.clone();
+    tokio::spawn(async move {
+        services::websocket::start_server(&ws_addr, ws_db).await;
+    });
+    
+    // 启动HTTP服务器
     let addr = format!("{}:{}", host, port).parse::<SocketAddr>().unwrap();
-    println!("Server running on http://{}", addr);
+    println!("HTTP Server running on http://{}", addr);
+    println!("WebSocket Server running on ws://{}", ws_addr);
 
     let listener = TcpListener::bind(addr).await.unwrap();
     serve(listener, app).await.unwrap();
