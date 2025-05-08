@@ -54,7 +54,7 @@ pub struct ChatActionRequest {
 }
 
 // 创建IM路由
-pub fn create_im_routes(db: Database, file_storage: Arc<FileStorage>) -> Router {
+pub fn create_im_routes(db: Database, file_storage: Arc<FileStorage>) -> Router<Database> {
     Router::new()
         // 消息相关路由
         .route("/messages/send", post(send_message))
@@ -297,19 +297,18 @@ async fn upload_file(
     
     // 处理上传的文件
     while let Some(field_result) = multipart.next_field().await.map_err(|_| StatusCode::BAD_REQUEST)? {
-        let Field { name, file_name: field_file_name, content_type: field_content_type, .. } = field_result;
+        let mut field = field_result;
         
-        if name.as_deref() == Some("file") {
-            if let Some(name) = field_file_name {
+        if field.name().unwrap_or_default() == "file" {
+            if let Some(name) = field.file_name() {
                 file_name = name.to_string();
             }
             
-            if let Some(content_type_value) = field_content_type {
+            if let Some(content_type_value) = field.content_type() {
                 content_type = content_type_value.to_string();
             }
             
             let mut field_data = BytesMut::new();
-            let mut field = field_result;
             
             while let Some(chunk) = field.chunk().await.map_err(|_| StatusCode::BAD_REQUEST)? {
                 field_data.extend_from_slice(&chunk);

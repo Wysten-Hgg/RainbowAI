@@ -41,10 +41,11 @@ async fn main() {
         .ok()
         .and_then(|p| p.parse::<u16>().ok())
         .unwrap_or(3001);
-    let ws_addr = format!("{}:{}", ws_host, ws_port);
+    let ws_addr_display = format!("{}:{}", ws_host, ws_port);
     
     // 在单独的任务中启动WebSocket服务
     let ws_db = db.clone();
+    let ws_addr = ws_addr_display.clone();
     tokio::spawn(async move {
         services::websocket::start_server(&ws_addr, ws_db).await;
     });
@@ -52,7 +53,7 @@ async fn main() {
     // 启动HTTP服务器
     let addr = format!("{}:{}", host, port).parse::<SocketAddr>().unwrap();
     println!("HTTP Server running on http://{}", addr);
-    println!("WebSocket Server running on ws://{}", ws_addr);
+    println!("WebSocket Server running on ws://{}", ws_addr_display);
 
     let listener = TcpListener::bind(addr).await.unwrap();
     serve(listener, app).await.unwrap();

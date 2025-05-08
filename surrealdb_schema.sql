@@ -533,3 +533,93 @@ CREATE shop_item:exclusive_story SET
     created_at = time::now(),
     visible = true,
     vip_discount = true;
+
+-- IM系统表结构定义 --
+
+-- 消息表
+DEFINE TABLE message SCHEMAFULL;
+DEFINE FIELD id ON message TYPE string ASSERT $value != NONE;
+DEFINE FIELD msg_id ON message TYPE string ASSERT $value != NONE;
+DEFINE FIELD from_user ON message TYPE string ASSERT $value != NONE;
+DEFINE FIELD to_user ON message TYPE string ASSERT $value != NONE;
+DEFINE FIELD content ON message TYPE string;
+DEFINE FIELD message_type ON message TYPE string ASSERT $value IN ['Text', 'Image', 'Voice', 'Video', 'File', 'Event', 'System'];
+DEFINE FIELD is_group ON message TYPE bool DEFAULT false;
+DEFINE FIELD is_read ON message TYPE bool DEFAULT false;
+DEFINE FIELD is_last ON message TYPE bool DEFAULT true;
+DEFINE FIELD chat_identify ON message TYPE string ASSERT $value != NONE;
+DEFINE FIELD file_id ON message TYPE option<string>;
+DEFINE FIELD extends ON message TYPE option<string>;
+DEFINE FIELD at ON message TYPE option<string>;
+DEFINE FIELD created_at ON message TYPE int;
+DEFINE FIELD updated_at ON message TYPE int;
+
+-- 群组表
+DEFINE TABLE group SCHEMAFULL;
+DEFINE FIELD id ON group TYPE string ASSERT $value != NONE;
+DEFINE FIELD group_id ON group TYPE string ASSERT $value != NONE;
+DEFINE FIELD name ON group TYPE string ASSERT $value != NONE;
+DEFINE FIELD owner_id ON group TYPE string ASSERT $value != NONE;
+DEFINE FIELD avatar ON group TYPE option<string>;
+DEFINE FIELD notice ON group TYPE option<string>;
+DEFINE FIELD setting ON group TYPE object {
+    manage: int,
+    invite: int,
+    nospeak: int
+};
+DEFINE FIELD created_at ON group TYPE int;
+DEFINE FIELD updated_at ON group TYPE int;
+
+-- 群组用户关系表
+DEFINE TABLE group_user SCHEMAFULL;
+DEFINE FIELD id ON group_user TYPE string ASSERT $value != NONE;
+DEFINE FIELD group_id ON group_user TYPE string ASSERT $value != NONE;
+DEFINE FIELD user_id ON group_user TYPE string ASSERT $value != NONE;
+DEFINE FIELD role ON group_user TYPE int ASSERT $value IN [1, 2, 3]; -- 1: 群主, 2: 管理员, 3: 普通成员
+DEFINE FIELD invite_id ON group_user TYPE option<string>;
+DEFINE FIELD created_at ON group_user TYPE int;
+
+-- 群组申请表
+DEFINE TABLE group_apply SCHEMAFULL;
+DEFINE FIELD id ON group_apply TYPE string ASSERT $value != NONE;
+DEFINE FIELD group_id ON group_apply TYPE string ASSERT $value != NONE;
+DEFINE FIELD user_id ON group_apply TYPE string ASSERT $value != NONE;
+DEFINE FIELD reason ON group_apply TYPE string;
+DEFINE FIELD status ON group_apply TYPE int DEFAULT 0; -- 0: 待处理, 1: 已同意, 2: 已拒绝
+DEFINE FIELD created_at ON group_apply TYPE int;
+
+-- 好友关系表
+DEFINE TABLE friend SCHEMAFULL;
+DEFINE FIELD id ON friend TYPE string ASSERT $value != NONE;
+DEFINE FIELD create_user ON friend TYPE string ASSERT $value != NONE;
+DEFINE FIELD friend_user_id ON friend TYPE string ASSERT $value != NONE;
+DEFINE FIELD remark ON friend TYPE option<string>;
+DEFINE FIELD status ON friend TYPE int DEFAULT 1; -- 1: 待确认, 2: 已确认
+DEFINE FIELD is_top ON friend TYPE bool DEFAULT false;
+DEFINE FIELD is_notice ON friend TYPE bool DEFAULT true;
+DEFINE FIELD is_invite ON friend TYPE bool DEFAULT true;
+DEFINE FIELD created_at ON friend TYPE int;
+DEFINE FIELD updated_at ON friend TYPE int;
+
+-- 文件表
+DEFINE TABLE chat_file SCHEMAFULL;
+DEFINE FIELD id ON chat_file TYPE string ASSERT $value != NONE;
+DEFINE FIELD user_id ON chat_file TYPE string ASSERT $value != NONE;
+DEFINE FIELD original_name ON chat_file TYPE string;
+DEFINE FIELD save_name ON chat_file TYPE string;
+DEFINE FIELD save_path ON chat_file TYPE string;
+DEFINE FIELD file_ext ON chat_file TYPE string;
+DEFINE FIELD file_size ON chat_file TYPE int;
+DEFINE FIELD file_type ON chat_file TYPE string;
+DEFINE FIELD created_at ON chat_file TYPE int;
+
+-- 创建索引
+DEFINE INDEX message_chat_identify_idx ON TABLE message COLUMNS chat_identify;
+DEFINE INDEX message_from_user_idx ON TABLE message COLUMNS from_user;
+DEFINE INDEX message_to_user_idx ON TABLE message COLUMNS to_user;
+DEFINE INDEX group_owner_idx ON TABLE group COLUMNS owner_id;
+DEFINE INDEX group_user_idx ON TABLE group_user COLUMNS user_id;
+DEFINE INDEX group_user_group_idx ON TABLE group_user COLUMNS group_id;
+DEFINE INDEX friend_create_user_idx ON TABLE friend COLUMNS create_user;
+DEFINE INDEX friend_friend_user_idx ON TABLE friend COLUMNS friend_user_id;
+DEFINE INDEX chat_file_user_idx ON TABLE chat_file COLUMNS user_id;

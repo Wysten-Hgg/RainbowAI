@@ -174,7 +174,7 @@ impl WebSocketServer {
                             to_user.to_string(),
                             content.to_string(),
                             message_type,
-                            *is_group,
+                            is_group,
                             file_id,
                             extends,
                             at,

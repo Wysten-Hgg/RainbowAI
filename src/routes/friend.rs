@@ -41,7 +41,7 @@ pub struct BlacklistRequest {
 }
 
 // 创建好友路由
-pub fn create_friend_routes(db: Database, file_storage: Arc<FileStorage>) -> Router {
+pub fn create_friend_routes(db: Database, file_storage: Arc<FileStorage>) -> Router<Database> {
     Router::new()
         .route("/list", get(get_friends))
         .route("/apply", post(apply_friend))

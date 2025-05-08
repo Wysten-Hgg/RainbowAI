@@ -1,6 +1,6 @@
 use axum::{
     Router,
-    routing::{get, post, delete},
+    routing::{get, post, delete, put},
     extract::{State, Path, Query},
     Json,
     http::StatusCode,
@@ -65,7 +65,7 @@ pub struct ChangeOwnerRequest {
 }
 
 // 创建群组路由
-pub fn create_group_routes(db: Database, file_storage: Arc<FileStorage>) -> Router {
+pub fn create_group_routes(db: Database, file_storage: Arc<FileStorage>) -> Router<Database> {
     Router::new()
         .route("/", post(create_group))
         .route("/:id", get(get_group_info))

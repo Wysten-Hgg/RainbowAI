@@ -109,20 +109,17 @@ pub fn create_routes(db: Database) -> Router {
     // 添加IM相关路由
     let im_routes = Router::new()
         .merge(im::create_im_routes(db.clone(), file_storage.clone()))
-        .layer(middleware::map_response(auth_middleware))
-        .with_state(db.clone());
+        .layer(middleware::map_response(auth_middleware));
     
     // 添加好友相关路由
     let friend_routes = Router::new()
         .merge(friend::create_friend_routes(db.clone(), file_storage.clone()))
-        .layer(middleware::map_response(auth_middleware))
-        .with_state(db.clone());
+        .layer(middleware::map_response(auth_middleware));
     
     // 添加群组相关路由
     let group_routes = Router::new()
         .merge(group::create_group_routes(db.clone(), file_storage.clone()))
-        .layer(middleware::map_response(auth_middleware))
-        .with_state(db.clone());
+        .layer(middleware::map_response(auth_middleware));
 
     Router::new()
         .nest("/auth", auth_routes)
