@@ -22,11 +22,14 @@ impl Database {
         let db_namespace = env::var("DB_NAMESPACE").unwrap_or_else(|_| "rainbow".to_string());
         let db_name = env::var("DB_NAME").unwrap_or_else(|_| "ai".to_string());
         
-        // 构建数据库连接URL
-        let db_url = format!("http://{}:{}", db_host, db_port);
+        // 构建数据库连接URL - 使用完整 URL
+        let full_url = format!("{}:{}", db_host, db_port);
         
-        // 连接数据库
-        let client = Surreal::<Client>::new::<Http>(&db_url).await?;
+        // 打印连接信息，用于调试
+        println!("Connecting to SurrealDB at {}", full_url);
+        
+        // 连接数据库 - 使用字符串字面量而不是格式化字符串
+        let client = Surreal::<Client>::new::<Http>(&full_url).await?;
         
         // 使用root账户连接
         client

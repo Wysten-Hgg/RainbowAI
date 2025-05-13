@@ -17,14 +17,14 @@ DEFINE FIELD daily_lio_count ON user TYPE int;
 DEFINE FIELD invite_code ON user TYPE option<string>;
 DEFINE FIELD created_at ON user TYPE int;
 DEFINE FIELD updated_at ON user TYPE int;
-ALTER TABLE user ADD FIELD hp TYPE int DEFAULT 0;
-ALTER TABLE user ADD FIELD lc_balance TYPE int DEFAULT 0;
-ALTER TABLE user ADD FIELD daily_checkin_streak TYPE int DEFAULT 0;
-ALTER TABLE user ADD FIELD last_checkin_date TYPE option<int>;
-ALTER TABLE user ADD FIELD total_invites TYPE int DEFAULT 0;
-ALTER TABLE user ADD FIELD invited_by TYPE option<string>;
-ALTER TABLE user ADD FIELD is_email_verified TYPE bool DEFAULT false;
-ALTER TABLE user ADD FIELD ai_slots TYPE int DEFAULT 1;
+DEFINE FIELD hp ON user TYPE int DEFAULT 0;
+DEFINE FIELD lc_balance ON user TYPE int DEFAULT 0;
+DEFINE FIELD daily_checkin_streak ON user TYPE int DEFAULT 0;
+DEFINE FIELD last_checkin_date ON user TYPE option<int>;
+DEFINE FIELD total_invites ON user TYPE int DEFAULT 0;
+DEFINE FIELD invited_by ON user TYPE option<string>;
+DEFINE FIELD is_email_verified ON user TYPE bool DEFAULT false;
+DEFINE FIELD ai_slots ON user TYPE int DEFAULT 1;
 
 -- Create Invite table
 DEFINE TABLE invite SCHEMAFULL;

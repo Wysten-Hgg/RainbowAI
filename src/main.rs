@@ -1,7 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio::net::TcpListener;
-use tower_http::cors::CorsLayer;
 use axum::serve;
 use std::env;
 use dotenv::dotenv;
